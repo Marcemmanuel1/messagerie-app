@@ -45,7 +45,7 @@ interface Message {
   conversationId?: number;
 }
 
-const socket = io("http://localhost:5000", {
+const socket = io("https://messagerie-nbbh.onrender.com", {
   withCredentials: true,
   autoConnect: false
 });
@@ -79,7 +79,7 @@ const Page = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/check-auth", {
+        const response = await fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
           credentials: "include",
         });
         
@@ -197,7 +197,7 @@ const Page = () => {
     try {
       setLoading(true);
       // Récupérer les utilisateurs
-      const usersResponse = await fetch("http://localhost:5000/api/users", {
+      const usersResponse = await fetch("https://messagerie-nbbh.onrender.com/api/users", {
         credentials: "include",
       });
       const usersData = await usersResponse.json();
@@ -215,7 +215,7 @@ const Page = () => {
 
   const fetchConversations = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/conversations", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/conversations", {
         credentials: "include",
       });
       const data = await response.json();
@@ -234,7 +234,7 @@ const Page = () => {
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/profile", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
         credentials: "include",
       });
       
@@ -266,7 +266,7 @@ const Page = () => {
       setLoading(true);
       // D'abord récupérer ou créer la conversation
       const convResponse = await fetch(
-        `http://localhost:5000/api/conversations/${selectedConversation.id}`,
+        `https://messagerie-nbbh.onrender.com/api/conversations/${selectedConversation.id}`,
         { credentials: "include" }
       );
       const convData = await convResponse.json();
@@ -276,7 +276,7 @@ const Page = () => {
         
         // Ensuite récupérer les messages
         const messagesResponse = await fetch(
-          `http://localhost:5000/api/messages/${convData.conversationId}`,
+          `https://messagerie-nbbh.onrender.com/api/messages/${convData.conversationId}`,
           { credentials: "include" }
         );
         const messagesData = await messagesResponse.json();
@@ -337,7 +337,7 @@ const Page = () => {
   const handleLogout = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/logout", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/logout", {
         method: "POST",
         credentials: "include",
       });
@@ -378,7 +378,7 @@ const Page = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/messages/upload", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/messages/upload", {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -450,7 +450,7 @@ const Page = () => {
     if (avatarFile) formData.append("avatar", avatarFile);
 
     try {
-      const response = await fetch("http://localhost:5000/api/profile", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
         method: "PUT",
         credentials: "include",
         body: formData,
@@ -479,10 +479,10 @@ const Page = () => {
         return (
           <div className="relative group">
             <img
-              src={`http://localhost:5000${msg.fileUrl}`}
+              src={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
               alt="Fichier image"
               className="max-w-xs md:max-w-md rounded-lg cursor-pointer"
-              onClick={() => window.open(`http://localhost:5000${msg.fileUrl}`, '_blank')}
+              onClick={() => window.open(`https://messagerie-nbbh.onrender.com${msg.fileUrl}`, '_blank')}
             />
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
               <span className="text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
@@ -494,7 +494,7 @@ const Page = () => {
       }
       return (
         <a
-          href={`http://localhost:5000${msg.fileUrl}`}
+          href={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
           download
           className="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
         >
@@ -558,7 +558,7 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -615,7 +615,7 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -693,7 +693,7 @@ const Page = () => {
                       <div className="relative group">
                         <img
                           className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg"
-                          src={userDetails?.avatar ? `http://localhost:5000${userDetails.avatar}` : "/images/default-avatar.jpg"}
+                          src={userDetails?.avatar ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}` : "/images/default-avatar.jpg"}
                           alt="Photo de profil"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -745,7 +745,7 @@ const Page = () => {
                         <div className="relative">
                           <img
                             className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-md"
-                            src={avatarPreview || (userDetails?.avatar ? `http://localhost:5000${userDetails.avatar}` : "/images/default-avatar.jpg")}
+                            src={avatarPreview || (userDetails?.avatar ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}` : "/images/default-avatar.jpg")}
                             alt="Aperçu"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -879,7 +879,7 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -936,7 +936,7 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -1010,7 +1010,7 @@ const Page = () => {
                     >
                       <div className="relative mr-3">
                         <img
-                          src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                          src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                           alt={user.name}
                           className="w-10 h-10 rounded-full object-cover"
                           onError={(e) => {
@@ -1074,7 +1074,7 @@ const Page = () => {
                 {user ? (
                   <img
                     className="w-full h-full object-cover"
-                    src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                    src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                     alt="Profil"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -1131,7 +1131,7 @@ const Page = () => {
           {user ? (
             <img
               className="w-full h-full object-cover"
-              src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+              src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
               alt="Profil"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -1217,7 +1217,7 @@ const Page = () => {
                       onClick={() => handleSelectUser(user)}
                     >
                       <img
-                        src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                        src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                         alt={user.name}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                         onError={(e) => {
@@ -1264,7 +1264,7 @@ const Page = () => {
                 >
                   <div className="relative mr-3">
                     <img
-                      src={conv.other_user_avatar ? `http://localhost:5000${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
+                      src={conv.other_user_avatar ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
                       alt={conv.other_user_name}
                       className="w-12 h-12 rounded-full object-cover"
                       onError={(e) => {
@@ -1341,7 +1341,7 @@ const Page = () => {
                     onClick={() => handleSelectUser(user)}
                   >
                     <img
-                      src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
                       alt={user.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                       onError={(e) => {
@@ -1386,7 +1386,7 @@ const Page = () => {
               >
                 <div className="relative mr-3">
                   <img
-                    src={conv.other_user_avatar ? `http://localhost:5000${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
+                    src={conv.other_user_avatar ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
                     alt={conv.other_user_name}
                     className="w-12 h-12 rounded-full object-cover"
                     onError={(e) => {
@@ -1443,7 +1443,7 @@ const Page = () => {
                 <div className="flex flex-col items-center">
                   <div className="relative mb-4">
                     <img
-                      src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                      src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                       onError={(e) => {
@@ -1564,7 +1564,7 @@ const Page = () => {
                 <div className="flex items-center">
                   <div className="relative">
                     <img
-                      src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                      src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       className="w-10 h-10 rounded-full object-cover"
                       onError={(e) => {
@@ -1693,7 +1693,7 @@ const Page = () => {
               <div className="flex items-center">
                 <div className="relative">
                   <img
-                    src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                    src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                     alt="Profil"
                     className="w-10 h-10 rounded-full object-cover"
                     onError={(e) => {
@@ -1821,7 +1821,7 @@ const Page = () => {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <img
-                    src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                    src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                     alt="Profil"
                     className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                     onError={(e) => {

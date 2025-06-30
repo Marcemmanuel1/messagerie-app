@@ -1,4 +1,4 @@
-import { useState, useRef} from "react";
+import { useState, useRef, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiMail, FiLock, FiCamera, FiArrowRight } from "react-icons/fi";
@@ -17,6 +17,15 @@ export default function Inscription() {
   const [loading, setLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Nettoyer l'URL Blob pour éviter les fuites mémoire
+  useEffect(() => {
+    return () => {
+      if (preview.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -154,7 +163,10 @@ export default function Inscription() {
                     src={preview}
                     alt="Preview"
                     className="w-full h-full object-cover"
-                    onError={() => setPreview("")}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null; // éviter boucle infinie
+                      setPreview("");
+                    }}
                   />
                 ) : (
                   <FiUser className="text-gray-400 text-3xl" />

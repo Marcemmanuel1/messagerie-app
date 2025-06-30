@@ -70,7 +70,7 @@ export default function Inscription() {
       formData.append("password", form.password);
       if (avatar) formData.append("avatar", avatar);
 
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/register", {
+      const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         body: formData,
         credentials: "include"
@@ -86,7 +86,7 @@ export default function Inscription() {
 
       if (!response.ok) throw new Error(data.message || "Erreur lors de l'inscription");
 
-      navigate("/connexion");
+      navigate("/");
     } catch (err) {
       console.error("Erreur d'inscription:", err);
       if (err instanceof Error) {

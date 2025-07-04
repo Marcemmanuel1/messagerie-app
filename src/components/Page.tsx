@@ -8,7 +8,7 @@ import {
 } from "react-icons/fi";
 import { BsThreeDotsVertical, BsCheckAll } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
-import io from "socket.io-client";
+import io, { Socket } from "socket.io-client";
 
 interface User {
   id: number;
@@ -30,6 +30,8 @@ interface Conversation {
   last_message?: string;
   last_message_time?: string;
   unread_count: number;
+  fileUrl?: string;
+  fileType?: string;
 }
 
 interface Message {
@@ -44,11 +46,6 @@ interface Message {
   is_read: boolean;
   conversationId?: number;
 }
-
-const socket = io("https://messagerie-nbbh.onrender.com", {
-  withCredentials: true,
-  autoConnect: false
-});
 
 const Page = () => {
   const navigate = useNavigate();
@@ -74,22 +71,46 @@ const Page = () => {
   const [showMobileConversationList, setShowMobileConversationList] = useState(false);
   const [showMobileUserDetails, setShowMobileUserDetails] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Initialisation Socket.io avec authentification JWT
+  const initSocket = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    socketRef.current = io("https://messagerie-nbbh.onrender.com", {
+      auth: { token },
+      withCredentials: true,
+    });
+
+    return socketRef.current;
+  };
 
   // Vérification de l'authentification et chargement initial
   useEffect(() => {
     const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate("/");
+        return;
+      }
+
       try {
         const response = await fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
-          credentials: "include",
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
         
         if (!response.ok) {
+          localStorage.removeItem('token');
           navigate("/");
           return;
         }
 
         const data = await response.json();
         if (!data.isAuthenticated) {
+          localStorage.removeItem('token');
           navigate("/");
           return;
         }
@@ -97,14 +118,15 @@ const Page = () => {
         setUser(data.user);
         fetchInitialData();
 
-        // Connecter le socket une fois authentifié
-        socket.connect();
+        // Initialiser la connexion Socket.io
+        const socket = initSocket();
+        if (socket) setupSocketListeners(socket);
 
         return () => {
-          socket.disconnect();
+          if (socket) socket.disconnect();
         };
       } catch (err) {
-        console.error("Erreur vérification auth:", err);
+        localStorage.removeItem('token');
         navigate("/");
       }
     };
@@ -113,81 +135,72 @@ const Page = () => {
   }, [navigate]);
 
   // Configurer les écouteurs Socket.io
-  useEffect(() => {
-    if (!user) return;
-
-    const handleNewMessage = (message: Message) => {
-      if (message.conversationId === conversationId) {
-        setMessages(prev => [...prev, message]);
-        // Marquer comme lu si c'est la conversation active
-        if (message.sender_id !== user.id) {
-          socket.emit('mark-as-read', { conversationId: message.conversationId });
-        }
-      }
-      
-      // Mettre à jour le dernier message dans la liste des conversations
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.id === message.conversationId 
-            ? { 
-                ...conv, 
-                last_message: message.content || "Fichier", 
-                last_message_time: message.created_at,
-                unread_count: message.sender_id === user.id ? 0 : conv.unread_count + 1
-              } 
-            : conv
-        )
-      );
-    };
-
-    const handleMessageSent = (message: Message) => {
-      setMessages(prev => [...prev, message]);
-    };
-
-    const handleConversationUpdated = (conversation: Conversation) => {
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.id === conversation.id ? conversation : conv
-        )
-      );
-      
-      // Recalculer le nombre total de messages non lus
-      const totalUnread = conversations.reduce((acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count), 0);
-      setUnreadCount(totalUnread);
-    };
-
-    const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
-      setUsers(prev => 
-        prev.map(u => 
-          u.id === userId ? { ...u, status } : u
-        )
-      );
-      
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.other_user_id === userId 
-            ? { ...conv, other_user_status: status } 
-            : conv
-        )
-      );
-      
-      if (selectedConversation?.id === userId) {
-        setSelectedConversation(prev => prev ? { ...prev, status } : null);
-      }
-    };
-
+  const setupSocketListeners = (socket: Socket) => {
     socket.on('new-message', handleNewMessage);
     socket.on('message-sent', handleMessageSent);
     socket.on('conversation-updated', handleConversationUpdated);
     socket.on('user-status-changed', handleUserStatusChanged);
+    socket.on('connect_error', (err) => {
+      console.error('Connection error:', err.message);
+    });
+  };
 
-    return () => {
-      socket.off('new-message', handleNewMessage);
-      socket.off('message-sent', handleMessageSent);
-      socket.off('conversation-updated', handleConversationUpdated);
-      socket.off('user-status-changed', handleUserStatusChanged);
-    };
-  }, [user, conversationId, conversations, selectedConversation]);
+  const handleNewMessage = (message: Message) => {
+    if (message.conversationId === conversationId) {
+      setMessages(prev => [...prev, message]);
+      if (message.sender_id !== user?.id) {
+        socketRef.current?.emit('mark-as-read', { conversationId: message.conversationId });
+      }
+    }
+    
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === message.conversationId 
+          ? { 
+              ...conv, 
+              last_message: message.content || "Fichier", 
+              last_message_time: message.created_at,
+              unread_count: message.sender_id === user?.id ? 0 : (conv.unread_count || 0) + 1
+            } 
+          : conv
+      )
+    );
+  };
+
+  const handleMessageSent = (message: Message) => {
+    setMessages(prev => [...prev, message]);
+  };
+
+  const handleConversationUpdated = (conversation: Conversation) => {
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === conversation.id ? conversation : conv
+      )
+    );
+    
+    const totalUnread = conversations.reduce((acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count), 0);
+    setUnreadCount(totalUnread);
+  };
+
+  const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
+    setUsers(prev => 
+      prev.map(u => 
+        u.id === userId ? { ...u, status } : u
+      )
+    );
+    
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.other_user_id === userId 
+          ? { ...conv, other_user_status: status } 
+          : conv
+      )
+    );
+    
+    if (selectedConversation?.id === userId) {
+      setSelectedConversation(prev => prev ? { ...prev, status } : null);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -196,9 +209,13 @@ const Page = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
+      
       // Récupérer les utilisateurs
       const usersResponse = await fetch("https://messagerie-nbbh.onrender.com/api/users", {
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       const usersData = await usersResponse.json();
       if (usersData.success) setUsers(usersData.users);
@@ -215,8 +232,11 @@ const Page = () => {
 
   const fetchConversations = async () => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/conversations", {
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       const data = await response.json();
       
@@ -234,8 +254,11 @@ const Page = () => {
   const fetchProfileData = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       if (!response.ok) throw new Error("Erreur de chargement du profil");
@@ -259,10 +282,16 @@ const Page = () => {
     if (!selectedConversation || !user) return;
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
+      
       // D'abord récupérer ou créer la conversation
       const convResponse = await fetch(
         `https://messagerie-nbbh.onrender.com/api/conversations/${selectedConversation.id}`,
-        { credentials: "include" }
+        { 
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
       const convData = await convResponse.json();
       
@@ -272,7 +301,11 @@ const Page = () => {
         // Ensuite récupérer les messages
         const messagesResponse = await fetch(
           `https://messagerie-nbbh.onrender.com/api/messages/${convData.conversationId}`,
-          { credentials: "include" }
+          { 
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
         );
         const messagesData = await messagesResponse.json();
         
@@ -281,7 +314,7 @@ const Page = () => {
           
           // Marquer les messages comme lus
           if (messagesData.messages.some((msg: Message) => !msg.is_read && msg.sender_id !== user.id)) {
-            socket.emit('mark-as-read', { conversationId: convData.conversationId });
+            socketRef.current?.emit('mark-as-read', { conversationId: convData.conversationId });
           }
         }
       }
@@ -332,32 +365,36 @@ const Page = () => {
   const handleLogout = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/logout", {
         method: "POST",
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      if (!response.ok) throw new Error("Erreur lors de la dé");
+      if (!response.ok) throw new Error("Erreur lors de la déconnexion");
 
-      socket.disconnect();
+      localStorage.removeItem('token');
+      socketRef.current?.disconnect();
       navigate("/");
     } catch (error) {
-      alert("Erreur lors de la déconnexion");
+      console.error("Erreur déconnexion:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const sendMessage = async () => {
-    if (input.trim() === "" || !conversationId || !user) return;
+    if (input.trim() === "" || !conversationId || !user || !socketRef.current) return;
     
     const messageContent = input.trim();
     setInput("");
 
-    socket.emit('send-message', { 
+    socketRef.current.emit('send-message', { 
       conversationId, 
       content: messageContent 
-    }, (response: { success: boolean; message: Message }) => {
+    }, (response: { success: boolean; message?: Message }) => {
       if (!response.success) {
         console.error("Erreur lors de l'envoi du message");
       }
@@ -373,9 +410,12 @@ const Page = () => {
 
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/messages/upload", {
         method: "POST",
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       
@@ -445,9 +485,12 @@ const Page = () => {
     if (avatarFile) formData.append("avatar", avatarFile);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
         method: "PUT",
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
 
@@ -531,7 +574,6 @@ const Page = () => {
   const handleBackToChat = () => {
     setShowMobileUserDetails(false);
   };
-
   if (showProfile) {
     return (
       <div className="flex w-full min-h-screen bg-gray-50">

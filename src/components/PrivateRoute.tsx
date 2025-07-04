@@ -1,26 +1,67 @@
-import React from 'react';
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate for redirection
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate(); // Initialize useNavigate hook
 
   useEffect(() => {
-    fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setIsLoggedIn(data.isAuthenticated);
-        setIsLoading(false);
-      })
-      .catch((err) => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('jwtToken'); // Get the JWT from localStorage
+
+        if (!token) {
+          // If no token exists, the user is not logged in
+          setIsLoggedIn(false);
+          setIsLoading(false);
+          // Redirect to login page immediately if no token
+          navigate("/"); // Assuming "/" is your login/home page
+          return;
+        }
+
+        const response = await fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
+          method: "GET", // Use GET method for checking auth
+          // IMPORTANT: Remove credentials: "include" as it's for cookie-based sessions.
+          // JWTs are sent via the Authorization header.
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // Send the JWT in the Authorization header
+          },
+        });
+
+        const contentType = response.headers.get("content-type");
+        const data = contentType?.includes("application/json") ? await response.json() : null;
+
+        if (!response.ok || !data.isAuthenticated) {
+          // If the response is not OK, or isAuthenticated is false
+          setIsLoggedIn(false);
+          localStorage.removeItem('jwtToken'); // Clear invalid or expired token
+          localStorage.removeItem('currentUser'); // Clear any stored user data
+          // Redirect to login page
+          navigate("/");
+        } else {
+          setIsLoggedIn(true);
+          // Optionally, update currentUser in localStorage with fresh data if needed
+          // For instance, if user status or avatar might change while logged in
+          if (data.user) {
+             localStorage.setItem('currentUser', JSON.stringify(data.user));
+          }
+        }
+      } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error("Erreur vérification auth (PrivateRoute):", message);
+        console.error("Authentication check error (PrivateRoute):", message);
         setIsLoggedIn(false);
+        localStorage.removeItem('jwtToken'); // Clear token on network/server error as well
+        localStorage.removeItem('currentUser');
+        navigate("/"); // Redirect on error
+      } finally {
         setIsLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    checkAuth();
+  }, [navigate]); // Add navigate to dependency array
 
   if (isLoading) {
     return (
@@ -36,8 +77,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   return isLoggedIn ? children : (
     <div className="flex items-center justify-center min-h-screen">
       <div className="flex flex-col items-center">
-        <span className="text-gray-500 mb-2">Vous devez être connecté.</span>
-        <a href="/" className="text-indigo-600 underline">Retour à l'accueil</a>
+        <span className="text-gray-500 mb-2">Vous devez être connecté pour accéder à cette page.</span>
+        <a href="/" className="text-indigo-600 underline hover:text-indigo-800 transition-colors">Retour à la page de connexion</a>
       </div>
     </div>
   );

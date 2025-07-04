@@ -9,12 +9,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -22,7 +22,8 @@ export default function Login() {
     try {
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/login", {
         method: "POST",
-        credentials: "include",
+        // Remove credentials: "include" as it's for cookie-based sessions.
+        // JWTs are sent via the Authorization header.
         headers: {
           "Content-Type": "application/json"
         },
@@ -33,15 +34,33 @@ export default function Login() {
       const data = contentType?.includes("application/json") ? await response.json() : null;
 
       if (!response.ok) {
-        const message = data?.message || "Échec de la connexion";
+        // If response is not ok, use the message from the backend or a generic one
+        const message = data?.message || "Échec de la connexion. Veuillez réessayer.";
         throw new Error(message);
       }
 
-      navigate("/page");
+      // Check if data and token exist (response.ok === true)
+      if (data && data.success && data.token) {
+        // Store the JWT in localStorage
+        localStorage.setItem('jwtToken', data.token);
+
+        // Optionally, store user data (excluding sensitive info like password)
+        // This can be useful for quickly accessing user details without another API call
+        if (data.user) {
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        }
+
+        navigate("/page"); // Redirect to the main application page
+      } else {
+        // This case handles a successful response that doesn't contain a token
+        throw new Error("Connexion réussie mais jeton d'authentification manquant.");
+      }
+
     } catch (err) {
-      let msg = "Une erreur est survenue";
+      let msg = "Une erreur est survenue lors de la connexion.";
       if (err instanceof Error) {
-        if (err.message.includes("401") || err.message.includes("Identifiants")) {
+        // Catch specific error messages from the backend
+        if (err.message.includes("Identifiants incorrects") || err.message.includes("401")) {
           msg = "Email ou mot de passe incorrect.";
         } else {
           msg = err.message;
@@ -81,17 +100,18 @@ export default function Login() {
           </motion.p>
         </div>
 
-        {/* Message d’erreur animé */}
-        <AnimatePresence>
+        {/* Message d'erreur avec AnimatePresence */}
+        <AnimatePresence mode="wait">
           {error && (
             <motion.div
-              key="error"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="mb-6 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 flex items-center"
+              key="error-message"
+              initial={{ opacity: 0, scale: 0.9, height: 0 }}
+              animate={{ opacity: 1, scale: 1, height: "auto" }}
+              exit={{ opacity: 0, scale: 0.9, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-6 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 flex items-center overflow-hidden"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -106,7 +126,11 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
             <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-1">
               Adresse email
             </label>
@@ -121,14 +145,18 @@ export default function Login() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 focus:bg-white transition-all duration-200"
                 placeholder="votre@email.com"
               />
             </div>
           </motion.div>
 
           {/* Mot de passe */}
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+          >
             <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-1">
               Mot de passe
             </label>
@@ -143,43 +171,61 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 focus:bg-white transition-all duration-200"
                 placeholder="••••••••"
               />
             </div>
           </motion.div>
 
           {/* Bouton */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium transition flex items-center justify-center shadow-md hover:shadow-lg ${
+              className={`w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:scale-[1.02] ${
                 loading ? "opacity-80 cursor-not-allowed" : "hover:from-indigo-700 hover:to-purple-700"
               }`}
             >
-              {loading ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
+              <AnimatePresence mode="wait">
+                {loading ? (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center"
                   >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Connexion...
-                </>
-              ) : (
-                <>
-                  Se connecter <FiArrowRight className="ml-2" />
-                </>
-              )}
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Connexion...
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="normal"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center"
+                  >
+                    Se connecter <FiArrowRight className="ml-2" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </button>
           </motion.div>
         </form>

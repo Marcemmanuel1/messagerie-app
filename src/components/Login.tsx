@@ -9,12 +9,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  // Gestion des changements de champ
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  // Soumission du formulaire
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -22,8 +24,6 @@ export default function Login() {
     try {
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/login", {
         method: "POST",
-        // Remove credentials: "include" as it's for cookie-based sessions.
-        // JWTs are sent via the Authorization header.
         headers: {
           "Content-Type": "application/json"
         },
@@ -34,32 +34,22 @@ export default function Login() {
       const data = contentType?.includes("application/json") ? await response.json() : null;
 
       if (!response.ok) {
-        // If response is not ok, use the message from the backend or a generic one
         const message = data?.message || "Échec de la connexion. Veuillez réessayer.";
         throw new Error(message);
       }
 
-      // Check if data and token exist (response.ok === true)
       if (data && data.success && data.token) {
-        // Store the JWT in localStorage
-        localStorage.setItem('jwtToken', data.token);
-
-        // Optionally, store user data (excluding sensitive info like password)
-        // This can be useful for quickly accessing user details without another API call
+        localStorage.setItem("jwtToken", data.token);
         if (data.user) {
-          localStorage.setItem('currentUser', JSON.stringify(data.user));
+          localStorage.setItem("currentUser", JSON.stringify(data.user));
         }
-
-        navigate("/page"); // Redirect to the main application page
+        navigate("/page");
       } else {
-        // This case handles a successful response that doesn't contain a token
         throw new Error("Connexion réussie mais jeton d'authentification manquant.");
       }
-
     } catch (err) {
       let msg = "Une erreur est survenue lors de la connexion.";
       if (err instanceof Error) {
-        // Catch specific error messages from the backend
         if (err.message.includes("Identifiants incorrects") || err.message.includes("401")) {
           msg = "Email ou mot de passe incorrect.";
         } else {
@@ -81,6 +71,7 @@ export default function Login() {
         transition={{ duration: 0.4 }}
         className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100"
       >
+        {/* Titre */}
         <div className="text-center mb-8">
           <motion.h2
             initial={{ opacity: 0, y: -10 }}
@@ -100,7 +91,7 @@ export default function Login() {
           </motion.p>
         </div>
 
-        {/* Message d'erreur avec AnimatePresence */}
+        {/* Message d'erreur */}
         <AnimatePresence mode="wait">
           {error && (
             <motion.div
@@ -124,13 +115,10 @@ export default function Login() {
           )}
         </AnimatePresence>
 
+        {/* Formulaire */}
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
             <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-1">
               Adresse email
             </label>
@@ -152,11 +140,7 @@ export default function Login() {
           </motion.div>
 
           {/* Mot de passe */}
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
             <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-1">
               Mot de passe
             </label>
@@ -177,12 +161,8 @@ export default function Login() {
             </div>
           </motion.div>
 
-          {/* Bouton */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+          {/* Bouton de connexion */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
             <button
               type="submit"
               disabled={loading}
@@ -205,7 +185,14 @@ export default function Login() {
                       fill="none"
                       viewBox="0 0 24 24"
                     >
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
                       <path
                         className="opacity-75"
                         fill="currentColor"
@@ -239,10 +226,7 @@ export default function Login() {
         >
           <p className="text-sm text-gray-500">
             Pas encore de compte ?{" "}
-            <a
-              href="/inscription"
-              className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
-            >
+            <a href="/inscription" className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
               S'inscrire
             </a>
           </p>

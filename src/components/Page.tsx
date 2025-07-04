@@ -1927,7 +1927,7 @@ const Page = () => {
           </div>
         </>
       ) : (
-        <div className="hidden md:flex flex-1 flex items-center justify-center text-gray-400 ml-[400px]">
+        <div className="hidden md:flex-1 md:flex items-center justify-center text-gray-400 ml-[400px]">
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center text-gray-400">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">

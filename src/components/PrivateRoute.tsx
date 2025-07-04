@@ -1,6 +1,5 @@
 import React from 'react';
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);

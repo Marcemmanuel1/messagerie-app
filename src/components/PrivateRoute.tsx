@@ -34,7 +34,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return isLoggedIn ? children : <Navigate to="/connexion" replace />;
+  return isLoggedIn ? children : <Navigate to="/" replace />;
 };
 
 export default PrivateRoute;

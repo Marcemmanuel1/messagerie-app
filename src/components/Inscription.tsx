@@ -86,7 +86,7 @@ export default function Inscription() {
       
       if (!response.ok) throw new Error(data.message || "Erreur lors de l'inscription");
 
-      navigate("/connexion");
+      navigate("/");
     } catch (err) {
       let message = "Une erreur est survenue";
       if (err instanceof Error) {
@@ -299,7 +299,7 @@ export default function Inscription() {
           <p className="text-sm text-gray-500">
             Vous avez déjà un compte ?{" "}
             <a 
-              href="/connexion" 
+              href="/" 
               className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               Connectez-vous

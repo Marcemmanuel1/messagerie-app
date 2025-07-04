@@ -84,13 +84,13 @@ const Page = () => {
         });
         
         if (!response.ok) {
-          navigate("/connexion");
+          navigate("/");
           return;
         }
 
         const data = await response.json();
         if (!data.isAuthenticated) {
-          navigate("/connexion");
+          navigate("/");
           return;
         }
 
@@ -105,7 +105,7 @@ const Page = () => {
         };
       } catch (err) {
         console.error("Erreur vérification auth:", err);
-        navigate("/connexion");
+        navigate("/");
       }
     };
 
@@ -207,7 +207,7 @@ const Page = () => {
       await fetchConversations();
     } catch (err) {
       console.error("Erreur de chargement des données:", err);
-      navigate("/connexion");
+      navigate("/");
     } finally {
       setLoading(false);
     }
@@ -227,7 +227,7 @@ const Page = () => {
       }
     } catch (err) {
       console.error("Erreur de chargement des conversations:", err);
-      navigate("/connexion");
+      navigate("/");
     }
   };
 
@@ -245,11 +245,11 @@ const Page = () => {
         setUser(data.user);
         setUserDetails(data.user);
       } else {
-        navigate("/connexion");
+        navigate("/");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur inconnue est survenue');
-      navigate("/connexion");
+      navigate("/");
     } finally {
       setLoading(false);
     }
@@ -287,7 +287,7 @@ const Page = () => {
       }
     } catch (err) {
       console.error(err);
-      navigate("/connexion");
+      navigate("/");
     } finally {
       setLoading(false);
     }
@@ -337,10 +337,10 @@ const Page = () => {
         credentials: "include",
       });
 
-      if (!response.ok) throw new Error("Erreur lors de la déconnexion");
+      if (!response.ok) throw new Error("Erreur lors de la dé");
 
       socket.disconnect();
-      navigate("/connexion");
+      navigate("/");
     } catch (error) {
       alert("Erreur lors de la déconnexion");
     } finally {

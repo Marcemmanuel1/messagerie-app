@@ -34,7 +34,14 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return isLoggedIn ? children : <Navigate to="/" replace />;
+  return isLoggedIn ? children : (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center">
+        <span className="text-gray-500 mb-2">Vous devez être connecté.</span>
+        <a href="/" className="text-indigo-600 underline">Retour à l'accueil</a>
+      </div>
+    </div>
+  );
 };
 
 export default PrivateRoute;

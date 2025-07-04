@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useState, useRef } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -299,12 +298,12 @@ export default function Inscription() {
         >
           <p className="text-sm text-gray-500">
             Vous avez déjà un compte ?{" "}
-            <link 
-              to="/" 
+            <a
+              href="/"
               className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               Connectez-vous
-            </link>
+            </a>
           </p>
         </motion.div>
       </motion.div>

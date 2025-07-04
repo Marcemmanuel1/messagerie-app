@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import React from 'react';
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -489,14 +488,14 @@ const Page = () => {
         );
       }
       return (
-        <link
-          to={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
+        <a
+          href={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
           download
           className="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
         >
           <FiPaperclip className="mr-2" />
           {msg.fileUrl.split("/").pop()}
-        </link>
+        </a>
       );
     }
     return <p className="whitespace-pre-wrap">{msg.content}</p>;
@@ -1522,9 +1521,9 @@ const Page = () => {
                   </div>
                   <div className="space-y-3">
                     {links.map((link, index) => (
-                      <link
+                      <a
                         key={index}
-                        to={link.url}
+                        href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-start p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
@@ -1542,7 +1541,7 @@ const Page = () => {
                           </p>
                           <p className="text-xs text-gray-500 truncate">{link.url}</p>
                         </div>
-                      </link>
+                      </a>
                     ))}
                   </div>
                 </div>
@@ -1900,9 +1899,9 @@ const Page = () => {
                 </div>
                 <div className="space-y-3">
                   {links.map((link, index) => (
-                    <link
+                    <a
                       key={index}
-                      to={link.url}
+                      href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-start p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
@@ -1920,7 +1919,7 @@ const Page = () => {
                         </p>
                         <p className="text-xs text-gray-500 truncate">{link.url}</p>
                       </div>
-                    </link>
+                    </a>
                   ))}
                 </div>
               </div>

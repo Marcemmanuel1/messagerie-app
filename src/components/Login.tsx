@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState} from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMail, FiLock, FiArrowRight } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -27,7 +27,7 @@ export default function Login() {
     setError("");
 
     try {
-      const response = await fetch("https://fondationcjt.com/api/login", {
+      const response = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -50,9 +50,13 @@ export default function Login() {
       }
 
       navigate("/page");
-    } catch (err: any) {
+    } catch (err) {
+      let message = "Une erreur est survenue lors de la connexion";
+      if (err instanceof Error) {
+        message = err.message;
+      }
       console.error("Erreur de connexion:", err);
-      setError(err.message || "Une erreur est survenue lors de la connexion");
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -71,7 +75,7 @@ export default function Login() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-3xl font-bold text-gray-800 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+            className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
           >
             Connexion
           </motion.h2>
@@ -188,7 +192,7 @@ export default function Login() {
           <p className="text-sm text-gray-500">
             Pas encore de compte ?{" "}
             <a 
-              href="/inscription" 
+              href="/" 
               className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               S'inscrire

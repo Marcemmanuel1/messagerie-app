@@ -1,31 +1,22 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiMail, FiLock, FiCamera, FiArrowRight } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 export default function Inscription() {
+  
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: ""
   });
-
   const [avatar, setAvatar] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-
-  // Nettoyer l'URL Blob pour éviter les fuites mémoire
-  useEffect(() => {
-    return () => {
-      if (preview.startsWith("blob:")) {
-        URL.revokeObjectURL(preview);
-      }
-    };
-  }, [preview]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,7 +29,7 @@ export default function Inscription() {
   const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-
+      
       if (!file.type.match('image.*')) {
         setError("Seuls les fichiers image (JPEG, PNG, GIF) sont autorisés");
         return;
@@ -79,7 +70,7 @@ export default function Inscription() {
       formData.append("password", form.password);
       if (avatar) formData.append("avatar", avatar);
 
-      const response = await fetch("https://fondationcjt.com/api/register", {
+      const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         body: formData,
         credentials: "include"
@@ -92,19 +83,21 @@ export default function Inscription() {
       }
 
       const data = await response.json();
-
+      
       if (!response.ok) throw new Error(data.message || "Erreur lors de l'inscription");
 
-      navigate("/");
+      navigate("/connexion");
     } catch (err) {
-      console.error("Erreur d'inscription:", err);
+      let message = "Une erreur est survenue";
       if (err instanceof Error) {
-        setError(err.message.includes("File too large")
-          ? "L'image est trop volumineuse (max 15MB autorisé)"
-          : err.message);
-      } else {
-        setError("Une erreur inconnue est survenue");
+        if (err.message.includes("File too large")) {
+          message = "L'image est trop volumineuse (max 5MB autorisé)";
+        } else {
+          message = err.message;
+        }
       }
+      console.error("Erreur d'inscription:", err);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -112,22 +105,22 @@ export default function Inscription() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50 p-4">
-      <motion.div
+      <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100"
       >
         <div className="text-center mb-8">
-          <motion.h2
+          <motion.h2 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-3xl font-bold text-gray-800 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+            className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
           >
             Créer un compte
           </motion.h2>
-          <motion.p
+          <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -138,7 +131,7 @@ export default function Inscription() {
         </div>
 
         {error && (
-          <motion.div
+          <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="mb-6 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 flex items-center"
@@ -151,22 +144,23 @@ export default function Inscription() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Avatar */}
+          {/* Champ Avatar */}
           <div className="flex flex-col items-center">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative group">
-              <div
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative group"
+            >
+              <div 
                 className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden cursor-pointer border-4 border-white shadow-lg"
                 onClick={() => fileInput.current?.click()}
               >
                 {preview ? (
-                  <img
-                    src={preview}
-                    alt="Preview"
+                  <img 
+                    src={preview} 
+                    alt="Preview" 
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null; // éviter boucle infinie
-                      setPreview("");
-                    }}
+                    onError={() => setPreview("")}
                   />
                 ) : (
                   <FiUser className="text-gray-400 text-3xl" />
@@ -186,8 +180,12 @@ export default function Inscription() {
             <p className="text-xs text-gray-400 mt-2">Photo de profil (optionnel - max 15MB)</p>
           </div>
 
-          {/* Nom */}
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+          {/* Champ Nom */}
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
             <label htmlFor="name" className="block text-sm font-medium text-gray-600 mb-1">
               Nom complet
             </label>
@@ -208,8 +206,12 @@ export default function Inscription() {
             </div>
           </motion.div>
 
-          {/* Email */}
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+          {/* Champ Email */}
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+          >
             <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-1">
               Adresse email
             </label>
@@ -230,8 +232,12 @@ export default function Inscription() {
             </div>
           </motion.div>
 
-          {/* Mot de passe */}
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+          {/* Champ Mot de passe */}
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
             <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-1">
               Mot de passe
             </label>
@@ -254,8 +260,12 @@ export default function Inscription() {
             <p className="text-xs text-gray-400 mt-1">Minimum 6 caractères</p>
           </motion.div>
 
-          {/* Bouton */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+          {/* Bouton d'inscription */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
             <button
               type="submit"
               disabled={loading}
@@ -280,10 +290,18 @@ export default function Inscription() {
           </motion.div>
         </form>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="mt-6 text-center">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="mt-6 text-center"
+        >
           <p className="text-sm text-gray-500">
             Vous avez déjà un compte ?{" "}
-            <a href="/" className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+            <a 
+              href="/connexion" 
+              className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+            >
               Connectez-vous
             </a>
           </p>

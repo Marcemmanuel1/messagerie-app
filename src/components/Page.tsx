@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -12,7 +13,7 @@ import io from "socket.io-client";
 interface User {
   id: number;
   name: string;
-  email: string;
+  email?: string;
   avatar: string;
   status: string;
   bio?: string;
@@ -26,7 +27,6 @@ interface Conversation {
   other_user_name: string;
   other_user_avatar: string;
   other_user_status: string;
-  other_user_email: string;
   last_message?: string;
   last_message_time?: string;
   unread_count: number;
@@ -45,11 +45,10 @@ interface Message {
   conversationId?: number;
 }
 
-const socket = io("https://fondationcjt.com", {
+const socket = io("http://localhost:5000", {
   withCredentials: true,
   autoConnect: false
 });
-
 
 const Page = () => {
   const navigate = useNavigate();
@@ -80,23 +79,23 @@ const Page = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("https://fondationcjt.com/api/check-auth", {
+        const response = await fetch("http://localhost:5000/api/check-auth", {
           credentials: "include",
         });
         
         if (!response.ok) {
-          navigate("/");
+          navigate("/connexion");
           return;
         }
 
         const data = await response.json();
         if (!data.isAuthenticated) {
-          navigate("/");
+          navigate("/connexion");
           return;
         }
 
         setUser(data.user);
-        await fetchInitialData();
+        fetchInitialData();
 
         // Connecter le socket une fois authentifié
         socket.connect();
@@ -106,7 +105,7 @@ const Page = () => {
         };
       } catch (err) {
         console.error("Erreur vérification auth:", err);
-        navigate("/");
+        navigate("/connexion");
       }
     };
 
@@ -198,7 +197,7 @@ const Page = () => {
     try {
       setLoading(true);
       // Récupérer les utilisateurs
-      const usersResponse = await fetch("https://fondationcjt.com/api/users", {
+      const usersResponse = await fetch("http://localhost:5000/api/users", {
         credentials: "include",
       });
       const usersData = await usersResponse.json();
@@ -208,7 +207,7 @@ const Page = () => {
       await fetchConversations();
     } catch (err) {
       console.error("Erreur de chargement des données:", err);
-      navigate("/");
+      navigate("/connexion");
     } finally {
       setLoading(false);
     }
@@ -216,7 +215,7 @@ const Page = () => {
 
   const fetchConversations = async () => {
     try {
-      const response = await fetch("https://fondationcjt.com/api/conversations", {
+      const response = await fetch("http://localhost:5000/api/conversations", {
         credentials: "include",
       });
       const data = await response.json();
@@ -228,14 +227,14 @@ const Page = () => {
       }
     } catch (err) {
       console.error("Erreur de chargement des conversations:", err);
-      navigate("/");
+      navigate("/connexion");
     }
   };
 
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      const response = await fetch("https://fondationcjt.com/api/profile", {
+      const response = await fetch("http://localhost:5000/api/profile", {
         credentials: "include",
       });
       
@@ -246,19 +245,14 @@ const Page = () => {
         setUser(data.user);
         setUserDetails(data.user);
       } else {
-        navigate("/");
+        navigate("/connexion");
       }
     } catch (err) {
-  if (err instanceof Error) {
-    setError(err.message);
-  } else {
-    setError("Une erreur inconnue est survenue");
-  }
-  navigate("/");
-} finally {
-  setLoading(false);
-}
-
+      setError(err instanceof Error ? err.message : 'Une erreur inconnue est survenue');
+      navigate("/connexion");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchConversationMessages = async () => {
@@ -267,7 +261,7 @@ const Page = () => {
       setLoading(true);
       // D'abord récupérer ou créer la conversation
       const convResponse = await fetch(
-        `https://fondationcjt.com/api/conversations/${selectedConversation.id}`,
+        `http://localhost:5000/api/conversations/${selectedConversation.id}`,
         { credentials: "include" }
       );
       const convData = await convResponse.json();
@@ -277,7 +271,7 @@ const Page = () => {
         
         // Ensuite récupérer les messages
         const messagesResponse = await fetch(
-          `https://fondationcjt.com/api/messages/${convData.conversationId}`,
+          `http://localhost:5000/api/messages/${convData.conversationId}`,
           { credentials: "include" }
         );
         const messagesData = await messagesResponse.json();
@@ -293,7 +287,7 @@ const Page = () => {
       }
     } catch (err) {
       console.error(err);
-      navigate("/");
+      navigate("/connexion");
     } finally {
       setLoading(false);
     }
@@ -338,7 +332,7 @@ const Page = () => {
   const handleLogout = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://fondationcjt.com/api/logout", {
+      const response = await fetch("http://localhost:5000/api/logout", {
         method: "POST",
         credentials: "include",
       });
@@ -346,7 +340,7 @@ const Page = () => {
       if (!response.ok) throw new Error("Erreur lors de la déconnexion");
 
       socket.disconnect();
-      navigate("/");
+      navigate("/connexion");
     } catch (error) {
       alert("Erreur lors de la déconnexion");
     } finally {
@@ -379,7 +373,7 @@ const Page = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("https://fondationcjt.com/api/messages/upload", {
+      const response = await fetch("http://localhost:5000/api/messages/upload", {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -451,7 +445,7 @@ const Page = () => {
     if (avatarFile) formData.append("avatar", avatarFile);
 
     try {
-      const response = await fetch("https://fondationcjt.com/api/profile", {
+      const response = await fetch("http://localhost:5000/api/profile", {
         method: "PUT",
         credentials: "include",
         body: formData,
@@ -480,10 +474,10 @@ const Page = () => {
         return (
           <div className="relative group">
             <img
-              src={`https://fondationcjt.com${msg.fileUrl}`}
+              src={`http://localhost:5000${msg.fileUrl}`}
               alt="Fichier image"
               className="max-w-xs md:max-w-md rounded-lg cursor-pointer"
-              onClick={() => window.open(`https://fondationcjt.com${msg.fileUrl}`, '_blank')}
+              onClick={() => window.open(`http://localhost:5000${msg.fileUrl}`, '_blank')}
             />
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
               <span className="text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
@@ -495,7 +489,7 @@ const Page = () => {
       }
       return (
         <a
-          href={`https://fondationcjt.com${msg.fileUrl}`}
+          href={`http://localhost:5000${msg.fileUrl}`}
           download
           className="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
         >
@@ -559,7 +553,7 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -616,7 +610,7 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -694,7 +688,7 @@ const Page = () => {
                       <div className="relative group">
                         <img
                           className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg"
-                          src={userDetails?.avatar ? `https://fondationcjt.com${userDetails.avatar}` : "/images/default-avatar.jpg"}
+                          src={userDetails?.avatar ? `http://localhost:5000${userDetails.avatar}` : "/images/default-avatar.jpg"}
                           alt="Photo de profil"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -746,7 +740,7 @@ const Page = () => {
                         <div className="relative">
                           <img
                             className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-md"
-                            src={avatarPreview || (userDetails?.avatar ? `https://fondationcjt.com${userDetails.avatar}` : "/images/default-avatar.jpg")}
+                            src={avatarPreview || (userDetails?.avatar ? `http://localhost:5000${userDetails.avatar}` : "/images/default-avatar.jpg")}
                             alt="Aperçu"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -880,7 +874,7 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -937,7 +931,7 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -1011,7 +1005,7 @@ const Page = () => {
                     >
                       <div className="relative mr-3">
                         <img
-                          src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                          src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                           alt={user.name}
                           className="w-10 h-10 rounded-full object-cover"
                           onError={(e) => {
@@ -1075,7 +1069,7 @@ const Page = () => {
                 {user ? (
                   <img
                     className="w-full h-full object-cover"
-                    src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                    src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                     alt="Profil"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -1132,7 +1126,7 @@ const Page = () => {
           {user ? (
             <img
               className="w-full h-full object-cover"
-              src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+              src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
               alt="Profil"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
@@ -1218,7 +1212,7 @@ const Page = () => {
                       onClick={() => handleSelectUser(user)}
                     >
                       <img
-                        src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                        src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                         alt={user.name}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                         onError={(e) => {
@@ -1252,11 +1246,8 @@ const Page = () => {
                     id: conv.other_user_id,
                     name: conv.other_user_name,
                     avatar: conv.other_user_avatar,
-                    status: conv.other_user_status,
-                    email: conv.other_user_email // ou "inconnu@email.com"
+                    status: conv.other_user_status
                   })}
-
-
                   className={`flex items-center p-3 rounded-lg cursor-pointer transition ${
                     selectedConversation?.id === conv.other_user_id
                       ? "bg-indigo-50"
@@ -1265,7 +1256,7 @@ const Page = () => {
                 >
                   <div className="relative mr-3">
                     <img
-                      src={conv.other_user_avatar ? `https://fondationcjt.com${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
+                      src={conv.other_user_avatar ? `http://localhost:5000${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
                       alt={conv.other_user_name}
                       className="w-12 h-12 rounded-full object-cover"
                       onError={(e) => {
@@ -1342,7 +1333,7 @@ const Page = () => {
                     onClick={() => handleSelectUser(user)}
                   >
                     <img
-                      src={user.avatar ? `https://fondationcjt.com${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={user.avatar ? `http://localhost:5000${user.avatar}` : "/images/default-avatar.jpg"}
                       alt={user.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                       onError={(e) => {
@@ -1358,6 +1349,7 @@ const Page = () => {
                   </span>
                 </div>
               ))}
+              
             </div>
           </div>
         </div>
@@ -1376,8 +1368,7 @@ const Page = () => {
                   id: conv.other_user_id,
                   name: conv.other_user_name,
                   avatar: conv.other_user_avatar,
-                  status: conv.other_user_status,
-                  email: conv.other_user_email // ✅ Doit exister maintenant si tu as corrigé l'interface
+                  status: conv.other_user_status
                 })}
                 className={`flex items-center p-3 rounded-lg cursor-pointer transition ${
                   selectedConversation?.id === conv.other_user_id
@@ -1387,7 +1378,7 @@ const Page = () => {
               >
                 <div className="relative mr-3">
                   <img
-                    src={conv.other_user_avatar ? `https://fondationcjt.com${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
+                    src={conv.other_user_avatar ? `http://localhost:5000${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
                     alt={conv.other_user_name}
                     className="w-12 h-12 rounded-full object-cover"
                     onError={(e) => {
@@ -1444,7 +1435,7 @@ const Page = () => {
                 <div className="flex flex-col items-center">
                   <div className="relative mb-4">
                     <img
-                      src={selectedConversation.avatar ? `https://fondationcjt.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                      src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                       onError={(e) => {
@@ -1565,7 +1556,7 @@ const Page = () => {
                 <div className="flex items-center">
                   <div className="relative">
                     <img
-                      src={selectedConversation.avatar ? `https://fondationcjt.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                      src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                       alt="Profil"
                       className="w-10 h-10 rounded-full object-cover"
                       onError={(e) => {
@@ -1694,7 +1685,7 @@ const Page = () => {
               <div className="flex items-center">
                 <div className="relative">
                   <img
-                    src={selectedConversation.avatar ? `https://fondationcjt.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                    src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                     alt="Profil"
                     className="w-10 h-10 rounded-full object-cover"
                     onError={(e) => {
@@ -1822,7 +1813,7 @@ const Page = () => {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <img
-                    src={selectedConversation.avatar ? `https://fondationcjt.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                    src={selectedConversation.avatar ? `http://localhost:5000${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
                     alt="Profil"
                     className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                     onError={(e) => {

@@ -8,8 +8,8 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/inscription" element={<Inscription />} />
+        <Route path="/" element={<Inscription />} />
+        <Route path="/connexion" element={<Login />} />
         <Route
           path="/page"
           element={

@@ -75,7 +75,7 @@ const Page = () => {
 
   // Initialisation Socket.io avec authentification JWT
   const initSocket = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('jwtToken');
     if (!token) return;
 
     socketRef.current = io("https://messagerie-nbbh.onrender.com", {

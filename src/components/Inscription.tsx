@@ -1,11 +1,10 @@
-import { useState, useRef } from "react";
-import type { ChangeEvent } from "react";
+import { useState, useRef, useEffect } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiMail, FiLock, FiCamera, FiArrowRight } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 export default function Inscription() {
-  
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -18,6 +17,15 @@ export default function Inscription() {
   const fileInput = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
+  // Nettoyer le preview à la destruction
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({
@@ -29,7 +37,7 @@ export default function Inscription() {
   const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
+
       if (!file.type.match('image.*')) {
         setError("Seuls les fichiers image (JPEG, PNG, GIF) sont autorisés");
         return;
@@ -46,7 +54,7 @@ export default function Inscription() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -73,25 +81,27 @@ export default function Inscription() {
       const response = await fetch("https://messagerie-nbbh.onrender.com/api/register", {
         method: "POST",
         body: formData,
-        credentials: "include"
+        credentials: "include",
       });
 
       const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        throw new Error(text || "Réponse inattendue du serveur");
-      }
+      const data = contentType?.includes("application/json")
+        ? await response.json()
+        : {};
 
-      const data = await response.json();
-      
-      if (!response.ok) throw new Error(data.message || "Erreur lors de l'inscription");
+      if (!response.ok) {
+        const msg = data?.message || "Échec de l'inscription";
+        throw new Error(msg);
+      }
 
       navigate("/");
     } catch (err) {
-      let message = "Une erreur est survenue";
+      let message = "Une erreur est survenue lors de l'inscription.";
       if (err instanceof Error) {
         if (err.message.includes("File too large")) {
           message = "L'image est trop volumineuse (max 5MB autorisé)";
+        } else if (err.message.includes("CORS")) {
+          message = "Erreur CORS : accès refusé. Vérifie la configuration du backend.";
         } else {
           message = err.message;
         }
@@ -144,7 +154,7 @@ export default function Inscription() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Champ Avatar */}
+          {/* Avatar */}
           <div className="flex flex-col items-center">
             <motion.div 
               whileHover={{ scale: 1.05 }}
@@ -180,98 +190,74 @@ export default function Inscription() {
             <p className="text-xs text-gray-400 mt-2">Photo de profil (optionnel - max 15MB)</p>
           </div>
 
-          {/* Champ Nom */}
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <label htmlFor="name" className="block text-sm font-medium text-gray-600 mb-1">
-              Nom complet
-            </label>
+          {/* Nom */}
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-600 mb-1">Nom complet</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
                 <FiUser />
               </div>
               <input
-                id="name"
                 type="text"
+                id="name"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 placeholder="Votre nom"
               />
             </div>
           </motion.div>
 
-          {/* Champ Email */}
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-1">
-              Adresse email
-            </label>
+          {/* Email */}
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-1">Adresse email</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
                 <FiMail />
               </div>
               <input
-                id="email"
                 type="email"
+                id="email"
                 name="email"
                 value={form.email}
                 onChange={handleChange}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 placeholder="votre@email.com"
               />
             </div>
           </motion.div>
 
-          {/* Champ Mot de passe */}
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-1">
-              Mot de passe
-            </label>
+          {/* Mot de passe */}
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-1">Mot de passe</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
                 <FiLock />
               </div>
               <input
-                id="password"
                 type="password"
+                id="password"
                 name="password"
                 value={form.password}
                 onChange={handleChange}
                 required
                 minLength={6}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 placeholder="••••••••"
               />
             </div>
             <p className="text-xs text-gray-400 mt-1">Minimum 6 caractères</p>
           </motion.div>
 
-          {/* Bouton d'inscription */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
+          {/* Bouton */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center shadow-md hover:shadow-lg ${
-                loading ? "opacity-80 cursor-not-allowed" : ""
-              }`}
+              className={`w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center shadow-md hover:shadow-lg ${loading ? "opacity-80 cursor-not-allowed" : ""}`}
             >
               {loading ? (
                 <>

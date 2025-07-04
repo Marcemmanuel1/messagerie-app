@@ -1,5 +1,5 @@
 import { useState} from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { FiMail, FiLock, FiArrowRight } from "react-icons/fi";
 import { motion } from "framer-motion";
 
@@ -191,12 +191,12 @@ export default function Login() {
         >
           <p className="text-sm text-gray-500">
             Pas encore de compte ?{" "}
-            <a 
-              href="/inscription" 
+            <Link 
+              to="/inscription" 
               className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               S'inscrire
-            </a>
+            </Link>
           </p>
         </motion.div>
       </motion.div>

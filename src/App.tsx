@@ -13,9 +13,7 @@ export default function App() {
         <Route
           path="/page"
           element={
-            <PrivateRoute>
               <Page />
-            </PrivateRoute>
           }
         />
       </Routes>

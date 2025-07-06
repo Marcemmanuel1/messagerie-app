@@ -48,11 +48,6 @@ type Message = {
   conversationId?: number;
 };
 
-type ApiError = {
-  message: string;
-  errors?: Record<string, string[]>;
-};
-
 const Page = () => {
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
@@ -268,47 +263,6 @@ const Page = () => {
     }
   };
 
-  // Fetch conversation messages
-  const fetchConversationMessages = async () => {
-    if (!selectedConversation || !user) return;
-    const token = localStorage.getItem("authToken");
-
-    try {
-      setLoading(true);
-      
-      const convResponse = await axios.get(
-        `https://messagerie-nbbh.onrender.com/api/conversations/${selectedConversation.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (convResponse.data.success) {
-        setConversationId(convResponse.data.conversationId);
-
-        const messagesResponse = await axios.get(
-          `https://messagerie-nbbh.onrender.com/api/messages/${convResponse.data.conversationId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (messagesResponse.data.success) {
-          setMessages(messagesResponse.data.messages);
-
-          if (messagesResponse.data.messages.some(
-            (msg: Message) => !msg.is_read && msg.sender_id !== user.id
-          )) {
-            socketRef.current?.emit("mark-as-read", {
-              conversationId: convResponse.data.conversationId,
-            });
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Conversation error:", err);
-      navigate("/");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // UI handlers
   const handleShowMessages = () => {
     setShowProfile(false);
@@ -374,37 +328,6 @@ const Page = () => {
         }
       }
     );
-  };
-
-  const handleFileUpload = async (file: File) => {
-    if (!conversationId || !user) return;
-    const token = localStorage.getItem("authToken");
-
-    try {
-      setLoading(true);
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("conversationId", conversationId.toString());
-
-      const response = await axios.post(
-        "https://messagerie-nbbh.onrender.com/api/messages/upload",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      if (!response.data.success) {
-        throw new Error("File upload failed");
-      }
-    } catch (err) {
-      console.error("File upload error:", err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Profile handlers

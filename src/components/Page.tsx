@@ -1,31 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FiMessageSquare,
-  FiSettings,
-  FiLogOut,
-  FiUser,
-  FiSearch,
-  FiFilter,
-  FiChevronRight,
-  FiLink,
-  FiImage,
-  FiMail,
-  FiPhone,
-  FiMapPin,
-  FiEdit,
-  FiSave,
-  FiX,
-  FiPaperclip,
-  FiVideo,
-  FiMenu,
-  FiChevronLeft,
+import { 
+  FiMessageSquare, FiSettings, FiLogOut, FiUser, FiSearch, 
+  FiFilter, FiChevronRight, FiLink, FiImage, FiMail, 
+  FiPhone, FiMapPin, FiEdit, FiSave, FiX, 
+  FiPaperclip, FiVideo, FiMenu, FiChevronLeft 
 } from "react-icons/fi";
 import { BsThreeDotsVertical, BsCheckAll } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
-import io from "socket.io-client";
+import io, { Socket } from "socket.io-client";
+import axios from "axios";
 
-interface User {
+// Types
+type User = {
   id: number;
   name: string;
   email: string;
@@ -34,9 +21,9 @@ interface User {
   bio?: string;
   phone?: string;
   location?: string;
-}
+};
 
-interface Conversation {
+type Conversation = {
   id: number;
   other_user_id: number;
   other_user_name: string;
@@ -46,9 +33,9 @@ interface Conversation {
   last_message?: string;
   last_message_time?: string;
   unread_count: number;
-}
+};
 
-interface Message {
+type Message = {
   id: number;
   content: string | null;
   fileUrl?: string | null;
@@ -59,19 +46,17 @@ interface Message {
   sender_avatar: string;
   is_read: boolean;
   conversationId?: number;
-}
+};
 
-const socket = io("https://messagerie-nbbh.onrender.com", {
-  withCredentials: true,
-  autoConnect: false,
-});
+type ApiError = {
+  message: string;
+  errors?: Record<string, string[]>;
+};
 
 const Page = () => {
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState<User | null>(
-    null
-  );
+  const [selectedConversation, setSelectedConversation] = useState<User | null>(null);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -89,67 +74,80 @@ const Page = () => {
   const [avatarPreview, setAvatarPreview] = useState("");
   const [error, setError] = useState("");
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [showMobileConversationList, setShowMobileConversationList] =
-    useState(false);
+  const [showMobileConversationList, setShowMobileConversationList] = useState(false);
   const [showMobileUserDetails, setShowMobileUserDetails] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-  // Vérification de l'authentification et chargement initial
+  // Initialize socket with JWT token
+  const initializeSocket = useCallback(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      navigate("/");
+      return;
+    }
+
+    socketRef.current = io("https://messagerie-nbbh.onrender.com", {
+      auth: { token },
+      transports: ["websocket"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [navigate]);
+
+  // Check authentication and load initial data
   useEffect(() => {
     const checkAuth = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        navigate("/");
+        return;
+      }
+
       try {
-        const response = await fetch(
-          "https://messagerie-nbbh.onrender.com/api/check-auth",
-          {
-            credentials: "include",
-          }
-        );
+        const response = await axios.get("https://messagerie-nbbh.onrender.com/api/check-auth", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        if (!response.ok) {
+        if (!response.data.isAuthenticated) {
           navigate("/");
           return;
         }
 
-        const data = await response.json();
-        if (!data.isAuthenticated) {
-          navigate("/");
-          return;
-        }
-
-        setUser(data.user);
+        setUser(response.data.user);
+        initializeSocket();
         await fetchInitialData();
-
-        // Connecter le socket une fois authentifié
-        socket.connect();
-
-        return () => {
-          socket.disconnect();
-        };
       } catch (err) {
-        console.error("Erreur vérification auth:", err);
+        console.error("Auth check error:", err);
         navigate("/");
       }
     };
 
     checkAuth();
-  }, [navigate]);
+  }, [navigate, initializeSocket]);
 
-  // Configurer les écouteurs Socket.io
+  // Setup socket listeners
   useEffect(() => {
-    if (!user) return;
+    if (!socketRef.current || !user) return;
+
+    const socket = socketRef.current;
 
     const handleNewMessage = (message: Message) => {
       if (message.conversationId === conversationId) {
         setMessages((prev) => [...prev, message]);
-        // Marquer comme lu si c'est la conversation active
         if (message.sender_id !== user.id) {
-          socket.emit("mark-as-read", {
-            conversationId: message.conversationId,
-          });
+          socket.emit("mark-as-read", { conversationId: message.conversationId });
         }
       }
 
-      // Mettre à jour le dernier message dans la liste des conversations
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === message.conversationId
@@ -157,8 +155,7 @@ const Page = () => {
                 ...conv,
                 last_message: message.content || "Fichier",
                 last_message_time: message.created_at,
-                unread_count:
-                  message.sender_id === user.id ? 0 : conv.unread_count + 1,
+                unread_count: message.sender_id === user.id ? 0 : conv.unread_count + 1,
               }
             : conv
         )
@@ -174,37 +171,20 @@ const Page = () => {
         prev.map((conv) => (conv.id === conversation.id ? conversation : conv))
       );
 
-      // Recalculer le nombre total de messages non lus
       const totalUnread = conversations.reduce(
-        (acc, conv) =>
-          acc +
-          (conv.id === conversation.id
-            ? conversation.unread_count
-            : conv.unread_count),
+        (acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count),
         0
       );
       setUnreadCount(totalUnread);
     };
 
-    const handleUserStatusChanged = ({
-      userId,
-      status,
-    }: {
-      userId: number;
-      status: string;
-    }) => {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, status } : u))
-      );
-
+    const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status } : u)));
       setConversations((prev) =>
         prev.map((conv) =>
-          conv.other_user_id === userId
-            ? { ...conv, other_user_status: status }
-            : conv
+          conv.other_user_id === userId ? { ...conv, other_user_status: status } : conv
         )
       );
-
       if (selectedConversation?.id === userId) {
         setSelectedConversation((prev) => (prev ? { ...prev, status } : null));
       }
@@ -223,150 +203,113 @@ const Page = () => {
     };
   }, [user, conversationId, conversations, selectedConversation]);
 
+  // Scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Fetch initial data
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      // Récupérer les utilisateurs
-      const usersResponse = await fetch(
-        "https://messagerie-nbbh.onrender.com/api/users",
-        {
-          credentials: "include",
-        }
-      );
-      const usersData = await usersResponse.json();
-      if (usersData.success) setUsers(usersData.users);
+      const token = localStorage.getItem("authToken");
+      
+      const [usersResponse, conversationsResponse] = await Promise.all([
+        axios.get("https://messagerie-nbbh.onrender.com/api/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get("https://messagerie-nbbh.onrender.com/api/conversations", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-      // Récupérer les conversations
-      await fetchConversations();
+      setUsers(usersResponse.data.users);
+      setConversations(conversationsResponse.data.conversations);
+      
+      const count = conversationsResponse.data.conversations.reduce(
+        (acc: number, conv: Conversation) => acc + (conv.unread_count || 0),
+        0
+      );
+      setUnreadCount(count);
     } catch (err) {
-      console.error("Erreur de chargement des données:", err);
+      console.error("Data loading error:", err);
       navigate("/");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchConversations = async () => {
-    try {
-      const response = await fetch(
-        "https://messagerie-nbbh.onrender.com/api/conversations",
-        {
-          credentials: "include",
-        }
-      );
-      const data = await response.json();
+  // Fetch profile data
+  const fetchProfileData = async () => {
+    setLoading(true);
+    setError("");
+    const token = localStorage.getItem("authToken");
 
-      if (data.success) {
-        setConversations(data.conversations);
-        const count = data.conversations.reduce(
-          (acc: number, conv: any) => acc + (conv.unread_count || 0),
-          0
-        );
-        setUnreadCount(count);
+    try {
+      const response = await axios.get("https://messagerie-nbbh.onrender.com/api/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.data.success || !response.data.user) {
+        throw new Error(response.data.message || "Failed to fetch profile");
       }
+
+      setUser(response.data.user);
+      setUserDetails(response.data.user);
     } catch (err) {
-      console.error("Erreur de chargement des conversations:", err);
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || "Profile fetch error");
+      } else {
+        setError("An unknown error occurred");
+      }
       navigate("/");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchProfileData = async () => {
-  setLoading(true);
-  setError(""); // Réinitialise les erreurs précédentes
-
-  try {
-    const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
-      credentials: "include",
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      // Erreur HTTP, mais serveur a peut-être répondu un message utile
-      throw new Error(data?.message || "Erreur serveur");
-    }
-
-    if (!data.success || !data.user) {
-      throw new Error(data?.message || "Échec de récupération du profil");
-    }
-
-    setUser(data.user);
-    setUserDetails(data.user);
-  } catch (err) {
-    if (err instanceof Error) {
-      console.error("Erreur fetchProfileData:", err.message);
-      setError(err.message);
-    } else {
-      console.error("Erreur inconnue fetchProfileData");
-      setError("Une erreur inconnue est survenue");
-    }
-
-    // Rediriger seulement si l'erreur est critique (tu peux affiner selon le message)
-    navigate("/");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+  // Fetch conversation messages
   const fetchConversationMessages = async () => {
     if (!selectedConversation || !user) return;
+    const token = localStorage.getItem("authToken");
+
     try {
       setLoading(true);
-      // D'abord récupérer ou créer la conversation
-      const convResponse = await fetch(
+      
+      const convResponse = await axios.get(
         `https://messagerie-nbbh.onrender.com/api/conversations/${selectedConversation.id}`,
-        { credentials: "include" }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      const convData = await convResponse.json();
 
-      if (convData.success) {
-        setConversationId(convData.conversationId);
+      if (convResponse.data.success) {
+        setConversationId(convResponse.data.conversationId);
 
-        // Ensuite récupérer les messages
-        const messagesResponse = await fetch(
-          `https://messagerie-nbbh.onrender.com/api/messages/${convData.conversationId}`,
-          { credentials: "include" }
+        const messagesResponse = await axios.get(
+          `https://messagerie-nbbh.onrender.com/api/messages/${convResponse.data.conversationId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        const messagesData = await messagesResponse.json();
 
-        if (messagesData.success) {
-          setMessages(messagesData.messages);
+        if (messagesResponse.data.success) {
+          setMessages(messagesResponse.data.messages);
 
-          // Marquer les messages comme lus
-          if (
-            messagesData.messages.some(
-              (msg: Message) => !msg.is_read && msg.sender_id !== user.id
-            )
-          ) {
-            socket.emit("mark-as-read", {
-              conversationId: convData.conversationId,
+          if (messagesResponse.data.messages.some(
+            (msg: Message) => !msg.is_read && msg.sender_id !== user.id
+          )) {
+            socketRef.current?.emit("mark-as-read", {
+              conversationId: convResponse.data.conversationId,
             });
           }
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Conversation error:", err);
       navigate("/");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (showProfile) {
-      fetchProfileData();
-    }
-  }, [showProfile]);
-
-  useEffect(() => {
-    fetchConversationMessages();
-  }, [selectedConversation]);
-
+  // UI handlers
   const handleShowMessages = () => {
     setShowProfile(false);
     setShowNewConversation(false);
@@ -377,6 +320,7 @@ const Page = () => {
     setShowProfile(true);
     setShowNewConversation(false);
     setShowMobileSidebar(false);
+    fetchProfileData();
   };
 
   const handleNewConversation = () => {
@@ -393,43 +337,40 @@ const Page = () => {
     setShowMobileConversationList(false);
   };
 
+  // Logout handler
   const handleLogout = async () => {
     setLoading(true);
+    const token = localStorage.getItem("authToken");
+
     try {
-      const response = await fetch(
-        "https://messagerie-nbbh.onrender.com/api/logout",
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
+      await axios.post("https://messagerie-nbbh.onrender.com/api/logout", {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (!response.ok) throw new Error("Erreur lors de la déconnexion");
-
-      socket.disconnect();
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userData");
+      socketRef.current?.disconnect();
       navigate("/");
-    } catch (error) {
-      alert("Erreur lors de la déconnexion");
+    } catch (err) {
+      console.error("Logout error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Message handlers
   const sendMessage = async () => {
-    if (input.trim() === "" || !conversationId || !user) return;
+    if (input.trim() === "" || !conversationId || !socketRef.current) return;
 
     const messageContent = input.trim();
     setInput("");
 
-    socket.emit(
+    socketRef.current.emit(
       "send-message",
-      {
-        conversationId,
-        content: messageContent,
-      },
+      { conversationId, content: messageContent },
       (response: { success: boolean; message: Message }) => {
         if (!response.success) {
-          console.error("Erreur lors de l'envoi du message");
+          console.error("Message send error");
         }
       }
     );
@@ -437,71 +378,50 @@ const Page = () => {
 
   const handleFileUpload = async (file: File) => {
     if (!conversationId || !user) return;
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("conversationId", conversationId.toString());
+    const token = localStorage.getItem("authToken");
 
     try {
       setLoading(true);
-      const response = await fetch(
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("conversationId", conversationId.toString());
+
+      const response = await axios.post(
         "https://messagerie-nbbh.onrender.com/api/messages/upload",
+        formData,
         {
-          method: "POST",
-          credentials: "include",
-          body: formData,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
-      const data = await response.json();
-      if (!data.success) {
-        alert("Erreur lors de l'envoi du fichier");
+      if (!response.data.success) {
+        throw new Error("File upload failed");
       }
     } catch (err) {
-      console.error(err);
-      alert("Erreur lors de l'envoi du fichier");
+      console.error("File upload error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileSelect = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*,.pdf,.doc,.docx,.xlsx,.ppt,.pptx";
-    input.onchange = () => {
-      if (input.files && input.files[0]) {
-        if (input.files[0].size > 25 * 1024 * 1024) {
-          alert("Le fichier est trop volumineux (max 25MB)");
-          return;
-        }
-        handleFileUpload(input.files[0]);
-      }
-    };
-    input.click();
-  };
-
+  // Profile handlers
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    if (userDetails) {
-      setUserDetails((prev) => ({
-        ...prev!,
-        [name]: value,
-      }));
-    }
+    setUserDetails((prev) => (prev ? { ...prev, [name]: value } : null));
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       const file = e.target.files[0];
       setAvatarFile(file);
 
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
+      reader.onloadend = () => setAvatarPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -510,6 +430,7 @@ const Page = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    const token = localStorage.getItem("authToken");
 
     const formData = new FormData();
     if (userDetails) {
@@ -521,32 +442,38 @@ const Page = () => {
     if (avatarFile) formData.append("avatar", avatarFile);
 
     try {
-      const response = await fetch(
+      const response = await axios.put(
         "https://messagerie-nbbh.onrender.com/api/profile",
+        formData,
         {
-          method: "PUT",
-          credentials: "include",
-          body: formData,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
-      const data = await response.json();
-      if (data.success) {
-        setUserDetails(data.user);
-        setUser(data.user);
+      if (response.data.success) {
+        setUserDetails(response.data.user);
+        setUser(response.data.user);
         setAvatarFile(null);
         setAvatarPreview("");
         setIsEditing(false);
       } else {
-        setError(data.message || "Erreur lors de la mise à jour");
+        setError(response.data.message || "Update failed");
       }
     } catch (err) {
-      setError("Erreur lors de la mise à jour du profil");
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || "Profile update error");
+      } else {
+        setError("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Render message content
   const renderMessageContent = (msg: Message) => {
     if (msg.fileUrl) {
       if (msg.fileType?.startsWith("image/")) {
@@ -557,10 +484,7 @@ const Page = () => {
               alt="Fichier image"
               className="max-w-xs md:max-w-md rounded-lg cursor-pointer"
               onClick={() =>
-                window.open(
-                  `https://messagerie-nbbh.onrender.com${msg.fileUrl}`,
-                  "_blank"
-                )
+                window.open(`https://messagerie-nbbh.onrender.com${msg.fileUrl}`, "_blank")
               }
             />
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -585,6 +509,7 @@ const Page = () => {
     return <p className="whitespace-pre-wrap">{msg.content}</p>;
   };
 
+  // Filtered data
   const filteredUsers = users.filter((user) =>
     user.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -594,19 +519,11 @@ const Page = () => {
   );
 
   const links = [
-    {
-      url: "https://example.com/project",
-      title: "Lien vers le projet",
-      image: "/images/car.jpg",
-    },
-    {
-      url: "https://example.com/documentation",
-      title: "Documentation technique",
-      image: "/images/document.jpg",
-    },
+    { url: "https://example.com/project", title: "Lien vers le projet", image: "/images/car.jpg" },
+    { url: "https://example.com/documentation", title: "Documentation technique", image: "/images/document.jpg" },
   ];
 
-  // Mobile responsive handlers
+  // Mobile handlers
   const handleBackToConversations = () => {
     setShowMobileConversationList(true);
     setSelectedConversation(null);

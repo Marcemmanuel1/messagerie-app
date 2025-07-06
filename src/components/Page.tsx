@@ -75,15 +75,88 @@ const Page = () => {
 
   // Initialisation Socket.io avec authentification JWT
   const initSocket = () => {
-    const token = localStorage.getItem('jwtToken');
+    const token = localStorage.getItem('token');
     if (!token) return;
 
     socketRef.current = io("https://messagerie-nbbh.onrender.com", {
       auth: { token },
+      transports: ['websocket'],
       withCredentials: true,
     });
 
     return socketRef.current;
+  };
+
+  // Configurer les écouteurs Socket.io
+  const setupSocketListeners = (socket: Socket) => {
+    socket.on('connect', () => {
+      console.log('Connected to socket server');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from socket server');
+    });
+
+    socket.on('new-message', (message: Message) => {
+      if (message.conversationId === conversationId) {
+        setMessages(prev => [...prev, message]);
+        if (message.sender_id !== user?.id) {
+          socketRef.current?.emit('mark-as-read', { conversationId: message.conversationId });
+        }
+      }
+      
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === message.conversationId 
+            ? { 
+                ...conv, 
+                last_message: message.content || "Fichier", 
+                last_message_time: message.created_at,
+                unread_count: message.sender_id === user?.id ? 0 : (conv.unread_count || 0) + 1
+              } 
+            : conv
+        )
+      );
+    });
+
+    socket.on('message-sent', (message: Message) => {
+      setMessages(prev => [...prev, message]);
+    });
+
+    socket.on('conversation-updated', (conversation: Conversation) => {
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === conversation.id ? conversation : conv
+        )
+      );
+      
+      const totalUnread = conversations.reduce((acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count), 0);
+      setUnreadCount(totalUnread);
+    });
+
+    socket.on('user-status-changed', ({ userId, status }: { userId: number; status: string }) => {
+      setUsers(prev => 
+        prev.map(u => 
+          u.id === userId ? { ...u, status } : u
+        )
+      );
+      
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.other_user_id === userId 
+            ? { ...conv, other_user_status: status } 
+            : conv
+        )
+      );
+      
+      if (selectedConversation?.id === userId) {
+        setSelectedConversation(prev => prev ? { ...prev, status } : null);
+      }
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Connection error:', err.message);
+    });
   };
 
   // Vérification de l'authentification et chargement initial
@@ -133,74 +206,6 @@ const Page = () => {
 
     checkAuth();
   }, [navigate]);
-
-  // Configurer les écouteurs Socket.io
-  const setupSocketListeners = (socket: Socket) => {
-    socket.on('new-message', handleNewMessage);
-    socket.on('message-sent', handleMessageSent);
-    socket.on('conversation-updated', handleConversationUpdated);
-    socket.on('user-status-changed', handleUserStatusChanged);
-    socket.on('connect_error', (err) => {
-      console.error('Connection error:', err.message);
-    });
-  };
-
-  const handleNewMessage = (message: Message) => {
-    if (message.conversationId === conversationId) {
-      setMessages(prev => [...prev, message]);
-      if (message.sender_id !== user?.id) {
-        socketRef.current?.emit('mark-as-read', { conversationId: message.conversationId });
-      }
-    }
-    
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === message.conversationId 
-          ? { 
-              ...conv, 
-              last_message: message.content || "Fichier", 
-              last_message_time: message.created_at,
-              unread_count: message.sender_id === user?.id ? 0 : (conv.unread_count || 0) + 1
-            } 
-          : conv
-      )
-    );
-  };
-
-  const handleMessageSent = (message: Message) => {
-    setMessages(prev => [...prev, message]);
-  };
-
-  const handleConversationUpdated = (conversation: Conversation) => {
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === conversation.id ? conversation : conv
-      )
-    );
-    
-    const totalUnread = conversations.reduce((acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count), 0);
-    setUnreadCount(totalUnread);
-  };
-
-  const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
-    setUsers(prev => 
-      prev.map(u => 
-        u.id === userId ? { ...u, status } : u
-      )
-    );
-    
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.other_user_id === userId 
-          ? { ...conv, other_user_status: status } 
-          : conv
-      )
-    );
-    
-    if (selectedConversation?.id === userId) {
-      setSelectedConversation(prev => prev ? { ...prev, status } : null);
-    }
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -574,6 +579,7 @@ const Page = () => {
   const handleBackToChat = () => {
     setShowMobileUserDetails(false);
   };
+
   if (showProfile) {
     return (
       <div className="flex w-full min-h-screen bg-gray-50">

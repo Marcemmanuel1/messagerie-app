@@ -39,7 +39,7 @@ export default function Login() {
       }
 
       if (data && data.success && data.token) {
-        localStorage.setItem("jwtToken", data.token);
+        localStorage.setItem("token", data.token); // <-- Correction ici
         if (data.user) {
           localStorage.setItem("currentUser", JSON.stringify(data.user));
         }

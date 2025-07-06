@@ -92,13 +92,21 @@ export default function Inscription() {
         : {};
 
       if (!response.ok) {
-        // Use the message from the backend if available, otherwise a generic error
         const msg = data?.message || "Registration failed.";
         throw new Error(msg);
       }
 
-      // Redirect to the home page or login page on successful registration
-      navigate("/");
+      // Si le backend retourne un token et un user :
+      if (data && data.success && data.token) {
+        localStorage.setItem("token", data.token); // Stocke le token comme pour le login
+        if (data.user) {
+          localStorage.setItem("currentUser", JSON.stringify(data.user));
+        }
+        navigate("/page"); // Redirige directement vers la page principale
+      } else {
+        // Sinon, redirige vers la page de connexion
+        navigate("/");
+      }
     } catch (err) {
       let message = "An error occurred during registration.";
       if (err instanceof Error) {

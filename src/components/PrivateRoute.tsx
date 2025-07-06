@@ -9,7 +9,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('jwtToken'); // Get the JWT from localStorage
+        const token = localStorage.getItem('token'); // Correction ici
 
         if (!token) {
           // If no token exists, the user is not logged in
@@ -26,7 +26,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
           // JWTs are sent via the Authorization header.
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}` // Send the JWT in the Authorization header
+            "Authorization": `Bearer ${token}` // Pas besoin de changer ici
           },
         });
 
@@ -36,7 +36,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
         if (!response.ok || !data.isAuthenticated) {
           // If the response is not OK, or isAuthenticated is false
           setIsLoggedIn(false);
-          localStorage.removeItem('jwtToken'); // Clear invalid or expired token
+          localStorage.removeItem('token'); // Correction ici
           localStorage.removeItem('currentUser'); // Clear any stored user data
           // Redirect to login page
           navigate("/");
@@ -52,7 +52,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
         const message = err instanceof Error ? err.message : String(err);
         console.error("Authentication check error (PrivateRoute):", message);
         setIsLoggedIn(false);
-        localStorage.removeItem('jwtToken'); // Clear token on network/server error as well
+        localStorage.removeItem('token'); // Correction ici
         localStorage.removeItem('currentUser');
         navigate("/"); // Redirect on error
       } finally {

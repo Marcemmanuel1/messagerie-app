@@ -1,9 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  FiMessageSquare, FiSettings, FiLogOut, FiUser, FiSearch, FiFilter, 
-  FiChevronRight, FiLink, FiImage, FiMail, FiPhone, FiMapPin, FiEdit, 
-  FiSave, FiX, FiPaperclip, FiVideo, FiMenu, FiChevronLeft
+import {
+  FiMessageSquare,
+  FiSettings,
+  FiLogOut,
+  FiUser,
+  FiSearch,
+  FiFilter,
+  FiChevronRight,
+  FiLink,
+  FiImage,
+  FiMail,
+  FiPhone,
+  FiMapPin,
+  FiEdit,
+  FiSave,
+  FiX,
+  FiPaperclip,
+  FiVideo,
+  FiMenu,
+  FiChevronLeft,
 } from "react-icons/fi";
 import { BsThreeDotsVertical, BsCheckAll } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
@@ -47,14 +63,15 @@ interface Message {
 
 const socket = io("https://messagerie-nbbh.onrender.com", {
   withCredentials: true,
-  autoConnect: false
+  autoConnect: false,
 });
-
 
 const Page = () => {
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState<User | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<User | null>(
+    null
+  );
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -72,7 +89,8 @@ const Page = () => {
   const [avatarPreview, setAvatarPreview] = useState("");
   const [error, setError] = useState("");
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [showMobileConversationList, setShowMobileConversationList] = useState(false);
+  const [showMobileConversationList, setShowMobileConversationList] =
+    useState(false);
   const [showMobileUserDetails, setShowMobileUserDetails] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -80,10 +98,13 @@ const Page = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
-          credentials: "include",
-        });
-        
+        const response = await fetch(
+          "https://messagerie-nbbh.onrender.com/api/check-auth",
+          {
+            credentials: "include",
+          }
+        );
+
         if (!response.ok) {
           navigate("/");
           return;
@@ -119,74 +140,86 @@ const Page = () => {
 
     const handleNewMessage = (message: Message) => {
       if (message.conversationId === conversationId) {
-        setMessages(prev => [...prev, message]);
+        setMessages((prev) => [...prev, message]);
         // Marquer comme lu si c'est la conversation active
         if (message.sender_id !== user.id) {
-          socket.emit('mark-as-read', { conversationId: message.conversationId });
+          socket.emit("mark-as-read", {
+            conversationId: message.conversationId,
+          });
         }
       }
-      
+
       // Mettre à jour le dernier message dans la liste des conversations
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.id === message.conversationId 
-            ? { 
-                ...conv, 
-                last_message: message.content || "Fichier", 
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === message.conversationId
+            ? {
+                ...conv,
+                last_message: message.content || "Fichier",
                 last_message_time: message.created_at,
-                unread_count: message.sender_id === user.id ? 0 : conv.unread_count + 1
-              } 
+                unread_count:
+                  message.sender_id === user.id ? 0 : conv.unread_count + 1,
+              }
             : conv
         )
       );
     };
 
     const handleMessageSent = (message: Message) => {
-      setMessages(prev => [...prev, message]);
+      setMessages((prev) => [...prev, message]);
     };
 
     const handleConversationUpdated = (conversation: Conversation) => {
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.id === conversation.id ? conversation : conv
-        )
+      setConversations((prev) =>
+        prev.map((conv) => (conv.id === conversation.id ? conversation : conv))
       );
-      
+
       // Recalculer le nombre total de messages non lus
-      const totalUnread = conversations.reduce((acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count), 0);
+      const totalUnread = conversations.reduce(
+        (acc, conv) =>
+          acc +
+          (conv.id === conversation.id
+            ? conversation.unread_count
+            : conv.unread_count),
+        0
+      );
       setUnreadCount(totalUnread);
     };
 
-    const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
-      setUsers(prev => 
-        prev.map(u => 
-          u.id === userId ? { ...u, status } : u
-        )
+    const handleUserStatusChanged = ({
+      userId,
+      status,
+    }: {
+      userId: number;
+      status: string;
+    }) => {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, status } : u))
       );
-      
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.other_user_id === userId 
-            ? { ...conv, other_user_status: status } 
+
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.other_user_id === userId
+            ? { ...conv, other_user_status: status }
             : conv
         )
       );
-      
+
       if (selectedConversation?.id === userId) {
-        setSelectedConversation(prev => prev ? { ...prev, status } : null);
+        setSelectedConversation((prev) => (prev ? { ...prev, status } : null));
       }
     };
 
-    socket.on('new-message', handleNewMessage);
-    socket.on('message-sent', handleMessageSent);
-    socket.on('conversation-updated', handleConversationUpdated);
-    socket.on('user-status-changed', handleUserStatusChanged);
+    socket.on("new-message", handleNewMessage);
+    socket.on("message-sent", handleMessageSent);
+    socket.on("conversation-updated", handleConversationUpdated);
+    socket.on("user-status-changed", handleUserStatusChanged);
 
     return () => {
-      socket.off('new-message', handleNewMessage);
-      socket.off('message-sent', handleMessageSent);
-      socket.off('conversation-updated', handleConversationUpdated);
-      socket.off('user-status-changed', handleUserStatusChanged);
+      socket.off("new-message", handleNewMessage);
+      socket.off("message-sent", handleMessageSent);
+      socket.off("conversation-updated", handleConversationUpdated);
+      socket.off("user-status-changed", handleUserStatusChanged);
     };
   }, [user, conversationId, conversations, selectedConversation]);
 
@@ -198,9 +231,12 @@ const Page = () => {
     try {
       setLoading(true);
       // Récupérer les utilisateurs
-      const usersResponse = await fetch("https://messagerie-nbbh.onrender.com/api/users", {
-        credentials: "include",
-      });
+      const usersResponse = await fetch(
+        "https://messagerie-nbbh.onrender.com/api/users",
+        {
+          credentials: "include",
+        }
+      );
       const usersData = await usersResponse.json();
       if (usersData.success) setUsers(usersData.users);
 
@@ -216,14 +252,20 @@ const Page = () => {
 
   const fetchConversations = async () => {
     try {
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/conversations", {
-        credentials: "include",
-      });
+      const response = await fetch(
+        "https://messagerie-nbbh.onrender.com/api/conversations",
+        {
+          credentials: "include",
+        }
+      );
       const data = await response.json();
-      
+
       if (data.success) {
         setConversations(data.conversations);
-        const count = data.conversations.reduce((acc: number, conv: any) => acc + (conv.unread_count || 0), 0);
+        const count = data.conversations.reduce(
+          (acc: number, conv: any) => acc + (conv.unread_count || 0),
+          0
+        );
         setUnreadCount(count);
       }
     } catch (err) {
@@ -233,33 +275,43 @@ const Page = () => {
   };
 
   const fetchProfileData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
-        credentials: "include",
-      });
-      
-      if (!response.ok) throw new Error("Erreur de chargement du profil");
+  setLoading(true);
+  setError(""); // Réinitialise les erreurs précédentes
 
-      const data = await response.json();
-      if (data.success) {
-        setUser(data.user);
-        setUserDetails(data.user);
-      } else {
-        navigate("/");
-      }
-    } catch (err) {
-  if (err instanceof Error) {
-    setError(err.message);
-  } else {
-    setError("Une erreur inconnue est survenue");
+  try {
+    const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
+      credentials: "include",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Erreur HTTP, mais serveur a peut-être répondu un message utile
+      throw new Error(data?.message || "Erreur serveur");
+    }
+
+    if (!data.success || !data.user) {
+      throw new Error(data?.message || "Échec de récupération du profil");
+    }
+
+    setUser(data.user);
+    setUserDetails(data.user);
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error("Erreur fetchProfileData:", err.message);
+      setError(err.message);
+    } else {
+      console.error("Erreur inconnue fetchProfileData");
+      setError("Une erreur inconnue est survenue");
+    }
+
+    // Rediriger seulement si l'erreur est critique (tu peux affiner selon le message)
+    navigate("/");
+  } finally {
+    setLoading(false);
   }
-  navigate("/");
-} finally {
-  setLoading(false);
-}
+};
 
-  };
 
   const fetchConversationMessages = async () => {
     if (!selectedConversation || !user) return;
@@ -271,23 +323,29 @@ const Page = () => {
         { credentials: "include" }
       );
       const convData = await convResponse.json();
-      
+
       if (convData.success) {
         setConversationId(convData.conversationId);
-        
+
         // Ensuite récupérer les messages
         const messagesResponse = await fetch(
           `https://messagerie-nbbh.onrender.com/api/messages/${convData.conversationId}`,
           { credentials: "include" }
         );
         const messagesData = await messagesResponse.json();
-        
+
         if (messagesData.success) {
           setMessages(messagesData.messages);
-          
+
           // Marquer les messages comme lus
-          if (messagesData.messages.some((msg: Message) => !msg.is_read && msg.sender_id !== user.id)) {
-            socket.emit('mark-as-read', { conversationId: convData.conversationId });
+          if (
+            messagesData.messages.some(
+              (msg: Message) => !msg.is_read && msg.sender_id !== user.id
+            )
+          ) {
+            socket.emit("mark-as-read", {
+              conversationId: convData.conversationId,
+            });
           }
         }
       }
@@ -338,10 +396,13 @@ const Page = () => {
   const handleLogout = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      const response = await fetch(
+        "https://messagerie-nbbh.onrender.com/api/logout",
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
 
       if (!response.ok) throw new Error("Erreur lors de la déconnexion");
 
@@ -356,18 +417,22 @@ const Page = () => {
 
   const sendMessage = async () => {
     if (input.trim() === "" || !conversationId || !user) return;
-    
+
     const messageContent = input.trim();
     setInput("");
 
-    socket.emit('send-message', { 
-      conversationId, 
-      content: messageContent 
-    }, (response: { success: boolean; message: Message }) => {
-      if (!response.success) {
-        console.error("Erreur lors de l'envoi du message");
+    socket.emit(
+      "send-message",
+      {
+        conversationId,
+        content: messageContent,
+      },
+      (response: { success: boolean; message: Message }) => {
+        if (!response.success) {
+          console.error("Erreur lors de l'envoi du message");
+        }
       }
-    });
+    );
   };
 
   const handleFileUpload = async (file: File) => {
@@ -379,12 +444,15 @@ const Page = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/messages/upload", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      
+      const response = await fetch(
+        "https://messagerie-nbbh.onrender.com/api/messages/upload",
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        }
+      );
+
       const data = await response.json();
       if (!data.success) {
         alert("Erreur lors de l'envoi du fichier");
@@ -413,10 +481,12 @@ const Page = () => {
     input.click();
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     if (userDetails) {
-      setUserDetails(prev => ({
+      setUserDetails((prev) => ({
         ...prev!,
         [name]: value,
       }));
@@ -451,11 +521,14 @@ const Page = () => {
     if (avatarFile) formData.append("avatar", avatarFile);
 
     try {
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
-        method: "PUT",
-        credentials: "include",
-        body: formData,
-      });
+      const response = await fetch(
+        "https://messagerie-nbbh.onrender.com/api/profile",
+        {
+          method: "PUT",
+          credentials: "include",
+          body: formData,
+        }
+      );
 
       const data = await response.json();
       if (data.success) {
@@ -483,7 +556,12 @@ const Page = () => {
               src={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
               alt="Fichier image"
               className="max-w-xs md:max-w-md rounded-lg cursor-pointer"
-              onClick={() => window.open(`https://messagerie-nbbh.onrender.com${msg.fileUrl}`, '_blank')}
+              onClick={() =>
+                window.open(
+                  `https://messagerie-nbbh.onrender.com${msg.fileUrl}`,
+                  "_blank"
+                )
+              }
             />
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
               <span className="text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
@@ -507,11 +585,11 @@ const Page = () => {
     return <p className="whitespace-pre-wrap">{msg.content}</p>;
   };
 
-  const filteredUsers = users.filter(user =>
+  const filteredUsers = users.filter((user) =>
     user.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredConversations = conversations.filter(conv =>
+  const filteredConversations = conversations.filter((conv) =>
     conv.other_user_name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -543,7 +621,10 @@ const Page = () => {
       <div className="flex w-full min-h-screen bg-gray-50">
         {/* Mobile Header */}
         <div className="md:hidden fixed top-0 left-0 right-0 bg-white z-50 p-3 border-b border-gray-200 flex items-center justify-between">
-          <button onClick={() => setShowMobileSidebar(true)} className="text-gray-600">
+          <button
+            onClick={() => setShowMobileSidebar(true)}
+            className="text-gray-600"
+          >
             <FiMenu size={24} />
           </button>
           <h1 className="text-xl font-semibold text-gray-800">Mon Profil</h1>
@@ -559,10 +640,15 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={
+                        user.avatar
+                          ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                          : "/images/default-avatar.jpg"
+                      }
                       alt="Profil"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                        (e.target as HTMLImageElement).src =
+                          "/images/default-avatar.jpg";
                       }}
                     />
                   ) : (
@@ -616,10 +702,15 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                src={
+                  user.avatar
+                    ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                    : "/images/default-avatar.jpg"
+                }
                 alt="Profil"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                  (e.target as HTMLImageElement).src =
+                    "/images/default-avatar.jpg";
                 }}
               />
             ) : (
@@ -673,9 +764,13 @@ const Page = () => {
                   <h1 className="text-2xl font-bold flex items-center">
                     <FiUser className="mr-2" /> Mon Profil
                   </h1>
-                  <div className={`px-2 py-1 text-xs rounded-full ${
-                    userDetails?.status === "En ligne" ? "bg-green-500" : "bg-gray-500"
-                  }`}>
+                  <div
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      userDetails?.status === "En ligne"
+                        ? "bg-green-500"
+                        : "bg-gray-500"
+                    }`}
+                  >
                     {userDetails?.status || "Hors ligne"}
                   </div>
                 </div>
@@ -694,10 +789,15 @@ const Page = () => {
                       <div className="relative group">
                         <img
                           className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg"
-                          src={userDetails?.avatar ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}` : "/images/default-avatar.jpg"}
+                          src={
+                            userDetails?.avatar
+                              ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}`
+                              : "/images/default-avatar.jpg"
+                          }
                           alt="Photo de profil"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                            (e.target as HTMLImageElement).src =
+                              "/images/default-avatar.jpg";
                           }}
                         />
                       </div>
@@ -705,7 +805,9 @@ const Page = () => {
 
                     <div className="flex-1 space-y-4">
                       <div>
-                        <h2 className="text-2xl font-bold text-gray-800">{userDetails?.name}</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">
+                          {userDetails?.name}
+                        </h2>
                         <p className="text-indigo-600 flex items-center">
                           <FiMail className="mr-2" /> {userDetails?.email}
                         </p>
@@ -724,8 +826,12 @@ const Page = () => {
 
                       {userDetails?.bio && (
                         <div className="mt-4">
-                          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Biographie</h3>
-                          <p className="mt-1 text-gray-700 whitespace-pre-line">{userDetails.bio}</p>
+                          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                            Biographie
+                          </h3>
+                          <p className="mt-1 text-gray-700 whitespace-pre-line">
+                            {userDetails.bio}
+                          </p>
                         </div>
                       )}
 
@@ -746,28 +852,38 @@ const Page = () => {
                         <div className="relative">
                           <img
                             className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-md"
-                            src={avatarPreview || (userDetails?.avatar ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}` : "/images/default-avatar.jpg")}
+                            src={
+                              avatarPreview ||
+                              (userDetails?.avatar
+                                ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}`
+                                : "/images/default-avatar.jpg")
+                            }
                             alt="Aperçu"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                              (e.target as HTMLImageElement).src =
+                                "/images/default-avatar.jpg";
                             }}
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-white font-medium">Changer</span>
+                            <span className="text-white font-medium">
+                              Changer
+                            </span>
                           </div>
                         </div>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleAvatarChange} 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
                         />
                       </label>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nom complet
+                        </label>
                         <input
                           type="text"
                           name="name"
@@ -779,7 +895,9 @@ const Page = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email
+                        </label>
                         <input
                           type="email"
                           value={userDetails?.email || ""}
@@ -789,7 +907,9 @@ const Page = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Téléphone
+                        </label>
                         <input
                           type="tel"
                           name="phone"
@@ -800,7 +920,9 @@ const Page = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Localisation</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Localisation
+                        </label>
                         <input
                           type="text"
                           name="location"
@@ -812,7 +934,9 @@ const Page = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Biographie</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Biographie
+                      </label>
                       <textarea
                         name="bio"
                         rows={4}
@@ -864,10 +988,15 @@ const Page = () => {
       <div className="flex w-full min-h-screen bg-gray-50">
         {/* Mobile Header */}
         <div className="md:hidden fixed top-0 left-0 right-0 bg-white z-50 p-3 border-b border-gray-200 flex items-center justify-between">
-          <button onClick={() => setShowMobileSidebar(true)} className="text-gray-600">
+          <button
+            onClick={() => setShowMobileSidebar(true)}
+            className="text-gray-600"
+          >
             <FiMenu size={24} />
           </button>
-          <h1 className="text-xl font-semibold text-gray-800">Nouvelle conversation</h1>
+          <h1 className="text-xl font-semibold text-gray-800">
+            Nouvelle conversation
+          </h1>
           <div className="w-6"></div> {/* Spacer for alignment */}
         </div>
 
@@ -880,10 +1009,15 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={
+                        user.avatar
+                          ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                          : "/images/default-avatar.jpg"
+                      }
                       alt="Profil"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                        (e.target as HTMLImageElement).src =
+                          "/images/default-avatar.jpg";
                       }}
                     />
                   ) : (
@@ -937,10 +1071,15 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                src={
+                  user.avatar
+                    ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                    : "/images/default-avatar.jpg"
+                }
                 alt="Profil"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                  (e.target as HTMLImageElement).src =
+                    "/images/default-avatar.jpg";
                 }}
               />
             ) : (
@@ -988,7 +1127,9 @@ const Page = () => {
         {/* New Conversation Content */}
         <div className="flex-1 overflow-auto md:ml-20 flex items-center justify-center p-6 pt-20 md:pt-6">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Nouvelle conversation</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              Nouvelle conversation
+            </h2>
             <div className="space-y-4">
               <div className="relative">
                 <input
@@ -1001,29 +1142,42 @@ const Page = () => {
                 <FiSearch className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
               </div>
               <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Contacts récents</h3>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Contacts récents
+                </h3>
                 <div className="space-y-3">
                   {filteredUsers.slice(0, 5).map((user) => (
-                    <div 
-                      key={user.id} 
+                    <div
+                      key={user.id}
                       className="flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
                       onClick={() => handleSelectUser(user)}
                     >
                       <div className="relative mr-3">
                         <img
-                          src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                          src={
+                            user.avatar
+                              ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                              : "/images/default-avatar.jpg"
+                          }
                           alt={user.name}
                           className="w-10 h-10 rounded-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                            (e.target as HTMLImageElement).src =
+                              "/images/default-avatar.jpg";
                           }}
                         />
-                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                          user.status === "En ligne" ? "bg-green-500" : "bg-gray-400"
-                        }`}></div>
+                        <div
+                          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                            user.status === "En ligne"
+                              ? "bg-green-500"
+                              : "bg-gray-400"
+                          }`}
+                        ></div>
                       </div>
                       <div>
-                        <h4 className="font-medium text-gray-900">{user.name}</h4>
+                        <h4 className="font-medium text-gray-900">
+                          {user.name}
+                        </h4>
                         <p className="text-xs text-gray-500">{user.status}</p>
                       </div>
                     </div>
@@ -1043,19 +1197,28 @@ const Page = () => {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white z-50 p-3 border-b border-gray-200 flex items-center justify-between">
         {selectedConversation && !showMobileConversationList ? (
           <>
-            <button onClick={handleBackToConversations} className="text-gray-600">
+            <button
+              onClick={handleBackToConversations}
+              className="text-gray-600"
+            >
               <FiChevronLeft size={24} />
             </button>
             <h1 className="text-xl font-semibold text-gray-800 truncate max-w-[60%]">
               {selectedConversation.name}
             </h1>
-            <button onClick={() => setShowMobileUserDetails(true)} className="text-gray-600">
+            <button
+              onClick={() => setShowMobileUserDetails(true)}
+              className="text-gray-600"
+            >
               <BsThreeDotsVertical size={20} />
             </button>
           </>
         ) : (
           <>
-            <button onClick={() => setShowMobileSidebar(true)} className="text-gray-600">
+            <button
+              onClick={() => setShowMobileSidebar(true)}
+              className="text-gray-600"
+            >
               <FiMenu size={24} />
             </button>
             <h1 className="text-xl font-semibold text-gray-800">Messages</h1>
@@ -1075,10 +1238,15 @@ const Page = () => {
                 {user ? (
                   <img
                     className="w-full h-full object-cover"
-                    src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                    src={
+                      user.avatar
+                        ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                        : "/images/default-avatar.jpg"
+                    }
                     alt="Profil"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                      (e.target as HTMLImageElement).src =
+                        "/images/default-avatar.jpg";
                     }}
                   />
                 ) : (
@@ -1132,10 +1300,15 @@ const Page = () => {
           {user ? (
             <img
               className="w-full h-full object-cover"
-              src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+              src={
+                user.avatar
+                  ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                  : "/images/default-avatar.jpg"
+              }
               alt="Profil"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                (e.target as HTMLImageElement).src =
+                  "/images/default-avatar.jpg";
               }}
             />
           ) : (
@@ -1202,8 +1375,10 @@ const Page = () => {
 
             <div className="mb-6">
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-sm font-semibold text-gray-700">Contacts</h2>
-                <button 
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Contacts
+                </h2>
+                <button
                   onClick={handleNewConversation}
                   className="text-xs text-indigo-600 hover:text-indigo-800"
                 >
@@ -1213,21 +1388,30 @@ const Page = () => {
               <div className="flex space-x-3 overflow-x-auto pb-2">
                 {filteredUsers.slice(0, 5).map((user) => (
                   <div key={user.id} className="flex flex-col items-center">
-                    <div 
+                    <div
                       className="relative cursor-pointer"
                       onClick={() => handleSelectUser(user)}
                     >
                       <img
-                        src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                        src={
+                          user.avatar
+                            ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                            : "/images/default-avatar.jpg"
+                        }
                         alt={user.name}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                          (e.target as HTMLImageElement).src =
+                            "/images/default-avatar.jpg";
                         }}
                       />
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                        user.status === "En ligne" ? "bg-green-500" : "bg-gray-400"
-                      }`}></div>
+                      <div
+                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                          user.status === "En ligne"
+                            ? "bg-green-500"
+                            : "bg-gray-400"
+                        }`}
+                      ></div>
                     </div>
                     <span className="text-xs mt-1 text-gray-600 truncate w-12 text-center">
                       {user.name.split(" ")[0]}
@@ -1239,7 +1423,9 @@ const Page = () => {
           </div>
 
           <div className="p-2">
-            <h2 className="px-2 text-sm font-semibold text-gray-700 mb-3">Messages récents</h2>
+            <h2 className="px-2 text-sm font-semibold text-gray-700 mb-3">
+              Messages récents
+            </h2>
             {filteredConversations.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 {search ? "Aucun résultat trouvé" : "Aucune conversation"}
@@ -1248,15 +1434,15 @@ const Page = () => {
               filteredConversations.map((conv) => (
                 <div
                   key={conv.id}
-                  onClick={() => handleSelectUser({
-                    id: conv.other_user_id,
-                    name: conv.other_user_name,
-                    avatar: conv.other_user_avatar,
-                    status: conv.other_user_status,
-                    email: conv.other_user_email // ou "inconnu@email.com"
-                  })}
-
-
+                  onClick={() =>
+                    handleSelectUser({
+                      id: conv.other_user_id,
+                      name: conv.other_user_name,
+                      avatar: conv.other_user_avatar,
+                      status: conv.other_user_status,
+                      email: conv.other_user_email, // ou "inconnu@email.com"
+                    })
+                  }
                   className={`flex items-center p-3 rounded-lg cursor-pointer transition ${
                     selectedConversation?.id === conv.other_user_id
                       ? "bg-indigo-50"
@@ -1265,16 +1451,25 @@ const Page = () => {
                 >
                   <div className="relative mr-3">
                     <img
-                      src={conv.other_user_avatar ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
+                      src={
+                        conv.other_user_avatar
+                          ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}`
+                          : "/images/default-avatar.jpg"
+                      }
                       alt={conv.other_user_name}
                       className="w-12 h-12 rounded-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                        (e.target as HTMLImageElement).src =
+                          "/images/default-avatar.jpg";
                       }}
                     />
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                      conv.other_user_status === "En ligne" ? "bg-green-500" : "bg-gray-400"
-                    }`}></div>
+                    <div
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                        conv.other_user_status === "En ligne"
+                          ? "bg-green-500"
+                          : "bg-gray-400"
+                      }`}
+                    ></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
@@ -1283,7 +1478,10 @@ const Page = () => {
                       </h3>
                       {conv.last_message_time && (
                         <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                          {new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(conv.last_message_time).toLocaleTimeString(
+                            [],
+                            { hour: "2-digit", minute: "2-digit" }
+                          )}
                         </span>
                       )}
                     </div>
@@ -1327,7 +1525,7 @@ const Page = () => {
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-sm font-semibold text-gray-700">Contacts</h2>
-              <button 
+              <button
                 onClick={handleNewConversation}
                 className="text-xs text-indigo-600 hover:text-indigo-800"
               >
@@ -1337,21 +1535,30 @@ const Page = () => {
             <div className="flex space-x-3 overflow-x-auto pb-2">
               {filteredUsers.slice(0, 5).map((user) => (
                 <div key={user.id} className="flex flex-col items-center">
-                  <div 
+                  <div
                     className="relative cursor-pointer"
                     onClick={() => handleSelectUser(user)}
                   >
                     <img
-                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default-avatar.jpg"}
+                      src={
+                        user.avatar
+                          ? `https://messagerie-nbbh.onrender.com${user.avatar}`
+                          : "/images/default-avatar.jpg"
+                      }
                       alt={user.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                        (e.target as HTMLImageElement).src =
+                          "/images/default-avatar.jpg";
                       }}
                     />
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                      user.status === "En ligne" ? "bg-green-500" : "bg-gray-400"
-                    }`}></div>
+                    <div
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                        user.status === "En ligne"
+                          ? "bg-green-500"
+                          : "bg-gray-400"
+                      }`}
+                    ></div>
                   </div>
                   <span className="text-xs mt-1 text-gray-600 truncate w-12 text-center">
                     {user.name.split(" ")[0]}
@@ -1363,7 +1570,9 @@ const Page = () => {
         </div>
 
         <div className="p-2">
-          <h2 className="px-2 text-sm font-semibold text-gray-700 mb-3">Messages récents</h2>
+          <h2 className="px-2 text-sm font-semibold text-gray-700 mb-3">
+            Messages récents
+          </h2>
           {filteredConversations.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {search ? "Aucun résultat trouvé" : "Aucune conversation"}
@@ -1372,13 +1581,15 @@ const Page = () => {
             filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => handleSelectUser({
-                  id: conv.other_user_id,
-                  name: conv.other_user_name,
-                  avatar: conv.other_user_avatar,
-                  status: conv.other_user_status,
-                  email: conv.other_user_email // ✅ Doit exister maintenant si tu as corrigé l'interface
-                })}
+                onClick={() =>
+                  handleSelectUser({
+                    id: conv.other_user_id,
+                    name: conv.other_user_name,
+                    avatar: conv.other_user_avatar,
+                    status: conv.other_user_status,
+                    email: conv.other_user_email, // ✅ Doit exister maintenant si tu as corrigé l'interface
+                  })
+                }
                 className={`flex items-center p-3 rounded-lg cursor-pointer transition ${
                   selectedConversation?.id === conv.other_user_id
                     ? "bg-indigo-50"
@@ -1387,16 +1598,25 @@ const Page = () => {
               >
                 <div className="relative mr-3">
                   <img
-                    src={conv.other_user_avatar ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}` : "/images/default-avatar.jpg"}
+                    src={
+                      conv.other_user_avatar
+                        ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}`
+                        : "/images/default-avatar.jpg"
+                    }
                     alt={conv.other_user_name}
                     className="w-12 h-12 rounded-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                      (e.target as HTMLImageElement).src =
+                        "/images/default-avatar.jpg";
                     }}
                   />
-                  <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                    conv.other_user_status === "En ligne" ? "bg-green-500" : "bg-gray-400"
-                  }`}></div>
+                  <div
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                      conv.other_user_status === "En ligne"
+                        ? "bg-green-500"
+                        : "bg-gray-400"
+                    }`}
+                  ></div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
@@ -1405,7 +1625,10 @@ const Page = () => {
                     </h3>
                     {conv.last_message_time && (
                       <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                        {new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(conv.last_message_time).toLocaleTimeString(
+                          [],
+                          { hour: "2-digit", minute: "2-digit" }
+                        )}
                       </span>
                     )}
                   </div>
@@ -1437,39 +1660,55 @@ const Page = () => {
                   <button onClick={handleBackToChat} className="text-gray-600">
                     <FiChevronLeft size={24} />
                   </button>
-                  <h2 className="text-xl font-semibold text-gray-800">Détails</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Détails
+                  </h2>
                   <div className="w-6"></div> {/* Spacer for alignment */}
                 </div>
 
                 <div className="flex flex-col items-center">
                   <div className="relative mb-4">
                     <img
-                      src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                      src={
+                        selectedConversation.avatar
+                          ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
+                          : "/images/default-avatar.jpg"
+                      }
                       alt="Profil"
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                        (e.target as HTMLImageElement).src =
+                          "/images/default-avatar.jpg";
                       }}
                     />
-                    <div className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-white ${
-                      selectedConversation.status === "En ligne" ? "bg-green-500" : "bg-gray-500"
-                    }`}></div>
+                    <div
+                      className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-white ${
+                        selectedConversation.status === "En ligne"
+                          ? "bg-green-500"
+                          : "bg-gray-500"
+                      }`}
+                    ></div>
                   </div>
                   <h2 className="text-xl font-semibold text-gray-900">
                     {selectedConversation.name}
                   </h2>
                   <p className="text-sm text-gray-500 mb-1">
-                    {selectedConversation.status === "En ligne" ? "En ligne" : "Hors ligne"}
+                    {selectedConversation.status === "En ligne"
+                      ? "En ligne"
+                      : "Hors ligne"}
                   </p>
                   {selectedConversation.email && (
                     <p className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
-                      <FiMail className="inline mr-1" /> {selectedConversation.email}
+                      <FiMail className="inline mr-1" />{" "}
+                      {selectedConversation.email}
                     </p>
                   )}
                 </div>
 
                 <div className="mt-8">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Informations</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    Informations
+                  </h3>
                   <div className="space-y-3">
                     {selectedConversation.phone && (
                       <div className="flex items-center text-gray-600">
@@ -1485,7 +1724,9 @@ const Page = () => {
                     )}
                     {selectedConversation.bio && (
                       <div className="mt-2">
-                        <p className="text-sm text-gray-700">{selectedConversation.bio}</p>
+                        <p className="text-sm text-gray-700">
+                          {selectedConversation.bio}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1548,7 +1789,9 @@ const Page = () => {
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {link.title}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {link.url}
+                          </p>
                         </div>
                       </a>
                     ))}
@@ -1565,56 +1808,82 @@ const Page = () => {
                 <div className="flex items-center">
                   <div className="relative">
                     <img
-                      src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                      src={
+                        selectedConversation.avatar
+                          ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
+                          : "/images/default-avatar.jpg"
+                      }
                       alt="Profil"
                       className="w-10 h-10 rounded-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                        (e.target as HTMLImageElement).src =
+                          "/images/default-avatar.jpg";
                       }}
                     />
                     <div
                       className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                        selectedConversation.status === "En ligne" ? "bg-green-500" : "bg-gray-400"
+                        selectedConversation.status === "En ligne"
+                          ? "bg-green-500"
+                          : "bg-gray-400"
                       }`}
                     />
                   </div>
                   <div className="ml-3">
-                    <h2 className="font-medium text-gray-900">{selectedConversation.name}</h2>
+                    <h2 className="font-medium text-gray-900">
+                      {selectedConversation.name}
+                    </h2>
                     <p className="text-xs text-gray-500">
-                      {selectedConversation.status === "En ligne" ? "En ligne" : "Hors ligne"}
+                      {selectedConversation.status === "En ligne"
+                        ? "En ligne"
+                        : "Hors ligne"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4 text-gray-500">
-                  <button className="hover:text-indigo-600 transition"><FiVideo size={20} /></button>
-                  <button className="hover:text-indigo-600 transition"><FiPhone size={20} /></button>
-                  <button onClick={() => setShowMobileUserDetails(true)} className="hover:text-gray-700 transition"><BsThreeDotsVertical size={20} /></button>
+                  <button className="hover:text-indigo-600 transition">
+                    <FiVideo size={20} />
+                  </button>
+                  <button className="hover:text-indigo-600 transition">
+                    <FiPhone size={20} />
+                  </button>
+                  <button
+                    onClick={() => setShowMobileUserDetails(true)}
+                    className="hover:text-gray-700 transition"
+                  >
+                    <BsThreeDotsVertical size={20} />
+                  </button>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, index) => {
-                  const showDate = index === 0 ||
+                  const showDate =
+                    index === 0 ||
                     new Date(msg.created_at).toDateString() !==
-                    new Date(messages[index - 1].created_at).toDateString();
+                      new Date(messages[index - 1].created_at).toDateString();
                   return (
                     <div key={msg.id}>
                       {showDate && (
                         <div className="flex items-center my-6">
                           <div className="flex-1 border-t border-gray-200"></div>
                           <span className="px-3 text-xs text-gray-500">
-                            {new Date(msg.created_at).toLocaleDateString("fr-FR", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                            })}
+                            {new Date(msg.created_at).toLocaleDateString(
+                              "fr-FR",
+                              {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                              }
+                            )}
                           </span>
                           <div className="flex-1 border-t border-gray-200"></div>
                         </div>
                       )}
                       <div
                         className={`flex ${
-                          msg.sender_id === selectedConversation.id ? "justify-start" : "justify-end"
+                          msg.sender_id === selectedConversation.id
+                            ? "justify-start"
+                            : "justify-end"
                         }`}
                       >
                         <div
@@ -1633,7 +1902,13 @@ const Page = () => {
                               })}
                             </span>
                             {msg.sender_id !== selectedConversation.id && (
-                              <BsCheckAll className={`${msg.is_read ? "text-blue-300" : "text-indigo-200"}`} />
+                              <BsCheckAll
+                                className={`${
+                                  msg.is_read
+                                    ? "text-blue-300"
+                                    : "text-indigo-200"
+                                }`}
+                              />
                             )}
                           </div>
                         </div>
@@ -1675,8 +1950,8 @@ const Page = () => {
                       onClick={sendMessage}
                       disabled={input.trim() === ""}
                       className={`ml-2 p-2 rounded-full transition shadow-md ${
-                        input.trim() === "" 
-                          ? "bg-gray-300 cursor-not-allowed" 
+                        input.trim() === ""
+                          ? "bg-gray-300 cursor-not-allowed"
                           : "bg-indigo-600 hover:bg-indigo-700 text-white"
                       }`}
                     >
@@ -1694,56 +1969,79 @@ const Page = () => {
               <div className="flex items-center">
                 <div className="relative">
                   <img
-                    src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                    src={
+                      selectedConversation.avatar
+                        ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
+                        : "/images/default-avatar.jpg"
+                    }
                     alt="Profil"
                     className="w-10 h-10 rounded-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                      (e.target as HTMLImageElement).src =
+                        "/images/default-avatar.jpg";
                     }}
                   />
                   <div
                     className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                      selectedConversation.status === "En ligne" ? "bg-green-500" : "bg-gray-400"
+                      selectedConversation.status === "En ligne"
+                        ? "bg-green-500"
+                        : "bg-gray-400"
                     }`}
                   />
                 </div>
                 <div className="ml-3">
-                  <h2 className="font-medium text-gray-900">{selectedConversation.name}</h2>
+                  <h2 className="font-medium text-gray-900">
+                    {selectedConversation.name}
+                  </h2>
                   <p className="text-xs text-gray-500">
-                    {selectedConversation.status === "En ligne" ? "En ligne" : "Hors ligne"}
+                    {selectedConversation.status === "En ligne"
+                      ? "En ligne"
+                      : "Hors ligne"}
                   </p>
                 </div>
               </div>
               <div className="flex items-center space-x-4 text-gray-500">
-                <button className="hover:text-indigo-600 transition"><FiVideo size={20} /></button>
-                <button className="hover:text-indigo-600 transition"><FiPhone size={20} /></button>
-                <button className="hover:text-gray-700 transition"><BsThreeDotsVertical size={20} /></button>
+                <button className="hover:text-indigo-600 transition">
+                  <FiVideo size={20} />
+                </button>
+                <button className="hover:text-indigo-600 transition">
+                  <FiPhone size={20} />
+                </button>
+                <button className="hover:text-gray-700 transition">
+                  <BsThreeDotsVertical size={20} />
+                </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg, index) => {
-                const showDate = index === 0 ||
+                const showDate =
+                  index === 0 ||
                   new Date(msg.created_at).toDateString() !==
-                  new Date(messages[index - 1].created_at).toDateString();
+                    new Date(messages[index - 1].created_at).toDateString();
                 return (
                   <div key={msg.id}>
                     {showDate && (
                       <div className="flex items-center my-6">
                         <div className="flex-1 border-t border-gray-200"></div>
                         <span className="px-3 text-xs text-gray-500">
-                          {new Date(msg.created_at).toLocaleDateString("fr-FR", {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "long",
-                          })}
+                          {new Date(msg.created_at).toLocaleDateString(
+                            "fr-FR",
+                            {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                            }
+                          )}
                         </span>
                         <div className="flex-1 border-t border-gray-200"></div>
                       </div>
                     )}
                     <div
                       className={`flex ${
-                        msg.sender_id === selectedConversation.id ? "justify-start" : "justify-end"
+                        msg.sender_id === selectedConversation.id
+                          ? "justify-start"
+                          : "justify-end"
                       }`}
                     >
                       <div
@@ -1762,7 +2060,13 @@ const Page = () => {
                             })}
                           </span>
                           {msg.sender_id !== selectedConversation.id && (
-                            <BsCheckAll className={`${msg.is_read ? "text-blue-300" : "text-indigo-200"}`} />
+                            <BsCheckAll
+                              className={`${
+                                msg.is_read
+                                  ? "text-blue-300"
+                                  : "text-indigo-200"
+                              }`}
+                            />
                           )}
                         </div>
                       </div>
@@ -1804,8 +2108,8 @@ const Page = () => {
                     onClick={sendMessage}
                     disabled={input.trim() === ""}
                     className={`ml-2 p-2 rounded-full transition shadow-md ${
-                      input.trim() === "" 
-                        ? "bg-gray-300 cursor-not-allowed" 
+                      input.trim() === ""
+                        ? "bg-gray-300 cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-700 text-white"
                     }`}
                   >
@@ -1822,32 +2126,46 @@ const Page = () => {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <img
-                    src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default-avatar.jpg"}
+                    src={
+                      selectedConversation.avatar
+                        ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
+                        : "/images/default-avatar.jpg"
+                    }
                     alt="Profil"
                     className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/default-avatar.jpg";
+                      (e.target as HTMLImageElement).src =
+                        "/images/default-avatar.jpg";
                     }}
                   />
-                  <div className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-white ${
-                    selectedConversation.status === "En ligne" ? "bg-green-500" : "bg-gray-500"
-                  }`}></div>
+                  <div
+                    className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-white ${
+                      selectedConversation.status === "En ligne"
+                        ? "bg-green-500"
+                        : "bg-gray-500"
+                    }`}
+                  ></div>
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900">
                   {selectedConversation.name}
                 </h2>
                 <p className="text-sm text-gray-500 mb-1">
-                  {selectedConversation.status === "En ligne" ? "En ligne" : "Hors ligne"}
+                  {selectedConversation.status === "En ligne"
+                    ? "En ligne"
+                    : "Hors ligne"}
                 </p>
                 {selectedConversation.email && (
                   <p className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
-                    <FiMail className="inline mr-1" /> {selectedConversation.email}
+                    <FiMail className="inline mr-1" />{" "}
+                    {selectedConversation.email}
                   </p>
                 )}
               </div>
 
               <div className="mt-8">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Informations</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Informations
+                </h3>
                 <div className="space-y-3">
                   {selectedConversation.phone && (
                     <div className="flex items-center text-gray-600">
@@ -1863,7 +2181,9 @@ const Page = () => {
                   )}
                   {selectedConversation.bio && (
                     <div className="mt-2">
-                      <p className="text-sm text-gray-700">{selectedConversation.bio}</p>
+                      <p className="text-sm text-gray-700">
+                        {selectedConversation.bio}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1926,7 +2246,9 @@ const Page = () => {
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {link.title}
                         </p>
-                        <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {link.url}
+                        </p>
                       </div>
                     </a>
                   ))}
@@ -1939,11 +2261,24 @@ const Page = () => {
         <div className="hidden md:flex flex-1 flex items-center justify-center text-gray-400 ml-[400px]">
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-12 w-12"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
               </svg>
             </div>
-            <h3 className="text-lg font-medium">Sélectionnez une conversation</h3>
+            <h3 className="text-lg font-medium">
+              Sélectionnez une conversation
+            </h3>
             <p className="mt-1 text-sm">Ou commencez une nouvelle discussion</p>
           </div>
         </div>

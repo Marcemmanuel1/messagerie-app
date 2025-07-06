@@ -398,7 +398,7 @@ const Page = () => {
             if (response.success) {
               resolve();
             } else {
-              reject(new Error(response.message || "Message send failed"));
+              reject(response.message || "Message send failed");
             }
           }
         );

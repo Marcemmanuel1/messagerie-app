@@ -27,7 +27,7 @@ export default function Login() {
     setError("");
 
     try {
-      const response = await fetch("https://fondationcjt.com/api/login", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/login", {
         method: "POST",
         credentials: "include",
         headers: {

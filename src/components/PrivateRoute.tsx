@@ -6,7 +6,7 @@ const PrivateRoute = ({ children }: { children: React.ReactElement }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/check-auth", {
+    fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
       credentials: "include",
     })
       .then((res) => res.json())

@@ -79,7 +79,7 @@ export default function Inscription() {
       formData.append("password", form.password);
       if (avatar) formData.append("avatar", avatar);
 
-      const response = await fetch("https://fondationcjt.com/api/register", {
+      const response = await fetch("https://messagerie-nbbh.onrender.com/api/register", {
         method: "POST",
         body: formData,
         credentials: "include"

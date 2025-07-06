@@ -103,6 +103,14 @@ const Page = () => {
       reconnectionDelay: 1000,
     });
 
+    // Handle connection errors
+    socketRef.current.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+      setTimeout(() => {
+        socketRef.current?.connect();
+      }, 1000);
+    });
+
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -188,7 +196,7 @@ const Page = () => {
       );
 
       const totalUnread = conversations.reduce(
-        (acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count),
+        (acc, conv) => acc + conv.unread_count,
         0
       );
       setUnreadCount(totalUnread);
@@ -319,7 +327,7 @@ const Page = () => {
       }
     } catch (err) {
       console.error("Conversation error:", err);
-      navigate("/");
+      setError("Failed to load conversation");
     } finally {
       setLoading(false);
     }
@@ -381,15 +389,25 @@ const Page = () => {
     const messageContent = input.trim();
     setInput("");
 
-    socketRef.current.emit(
-      "send-message",
-      { conversationId, content: messageContent },
-      (response: { success: boolean; message: Message }) => {
-        if (!response.success) {
-          console.error("Message send error");
-        }
-      }
-    );
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socketRef.current?.emit(
+          "send-message",
+          { conversationId, content: messageContent },
+          (response: { success: boolean; message?: Message }) => {
+            if (response.success) {
+              resolve();
+            } else {
+              reject(new Error(response.message || "Message send failed"));
+            }
+          }
+        );
+      });
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      setError("Failed to send message");
+      setInput(messageContent); // Restore the message if failed
+    }
   };
 
   const handleFileUpload = async (file: File) => {
@@ -398,6 +416,7 @@ const Page = () => {
 
     try {
       setLoading(true);
+      setError("");
       const formData = new FormData();
       formData.append("file", file);
       formData.append("conversationId", conversationId.toString());
@@ -418,6 +437,7 @@ const Page = () => {
       }
     } catch (err) {
       console.error("File upload error:", err);
+      setError("Failed to upload file");
     } finally {
       setLoading(false);
     }
@@ -516,6 +536,8 @@ const Page = () => {
           href={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
           download
           className="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+          target="_blank"
+          rel="noopener noreferrer"
         >
           <FiPaperclip className="mr-2" />
           {msg.fileUrl.split("/").pop()}

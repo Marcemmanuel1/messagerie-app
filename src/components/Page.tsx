@@ -48,11 +48,6 @@ type Message = {
   conversationId?: number;
 };
 
-type ApiError = {
-  message: string;
-  errors?: Record<string, string[]>;
-};
-
 const Page = () => {
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
@@ -147,6 +142,13 @@ const Page = () => {
 
     checkAuth();
   }, [navigate, initializeSocket]);
+
+  // Fetch conversation messages when selected conversation changes
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchConversationMessages();
+    }
+  }, [selectedConversation]);
 
   // Setup socket listeners
   useEffect(() => {

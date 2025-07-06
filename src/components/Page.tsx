@@ -48,6 +48,11 @@ type Message = {
   conversationId?: number;
 };
 
+type ApiError = {
+  message: string;
+  errors?: Record<string, string[]>;
+};
+
 const Page = () => {
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
@@ -73,6 +78,20 @@ const Page = () => {
   const [showMobileUserDetails, setShowMobileUserDetails] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+
+  // Handle file selection
+  const handleFileSelect = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*';
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        handleFileUpload(files[0]);
+      }
+    };
+    input.click();
+  };
 
   // Initialize socket with JWT token
   const initializeSocket = useCallback(() => {
@@ -263,6 +282,47 @@ const Page = () => {
     }
   };
 
+  // Fetch conversation messages
+  const fetchConversationMessages = async () => {
+    if (!selectedConversation || !user) return;
+    const token = localStorage.getItem("authToken");
+
+    try {
+      setLoading(true);
+      
+      const convResponse = await axios.get(
+        `https://messagerie-nbbh.onrender.com/api/conversations/${selectedConversation.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (convResponse.data.success) {
+        setConversationId(convResponse.data.conversationId);
+
+        const messagesResponse = await axios.get(
+          `https://messagerie-nbbh.onrender.com/api/messages/${convResponse.data.conversationId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (messagesResponse.data.success) {
+          setMessages(messagesResponse.data.messages);
+
+          if (messagesResponse.data.messages.some(
+            (msg: Message) => !msg.is_read && msg.sender_id !== user.id
+          )) {
+            socketRef.current?.emit("mark-as-read", {
+              conversationId: convResponse.data.conversationId,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Conversation error:", err);
+      navigate("/");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // UI handlers
   const handleShowMessages = () => {
     setShowProfile(false);
@@ -328,6 +388,37 @@ const Page = () => {
         }
       }
     );
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!conversationId || !user) return;
+    const token = localStorage.getItem("authToken");
+
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("conversationId", conversationId.toString());
+
+      const response = await axios.post(
+        "https://messagerie-nbbh.onrender.com/api/messages/upload",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error("File upload failed");
+      }
+    } catch (err) {
+      console.error("File upload error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Profile handlers
@@ -1280,7 +1371,7 @@ const Page = () => {
                       name: conv.other_user_name,
                       avatar: conv.other_user_avatar,
                       status: conv.other_user_status,
-                      email: conv.other_user_email, // ou "inconnu@email.com"
+                      email: conv.other_user_email,
                     })
                   }
                   className={`flex items-center p-3 rounded-lg cursor-pointer transition ${
@@ -1427,7 +1518,7 @@ const Page = () => {
                     name: conv.other_user_name,
                     avatar: conv.other_user_avatar,
                     status: conv.other_user_status,
-                    email: conv.other_user_email, // ✅ Doit exister maintenant si tu as corrigé l'interface
+                    email: conv.other_user_email,
                   })
                 }
                 className={`flex items-center p-3 rounded-lg cursor-pointer transition ${

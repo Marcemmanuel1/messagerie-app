@@ -1,14 +1,13 @@
-import React from 'react';
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FiMessageSquare, FiSettings, FiLogOut, FiUser, FiSearch, FiFilter, 
   FiChevronRight, FiLink, FiImage, FiMail, FiPhone, FiMapPin, FiEdit, 
   FiSave, FiX, FiPaperclip, FiVideo, FiMenu, FiChevronLeft
-} from "react-icons/fi";
-import { BsThreeDotsVertical, BsCheckAll } from "react-icons/bs";
-import { IoMdSend } from "react-icons/io";
-import io, { Socket } from "socket.io-client";
+} from 'react-icons/fi';
+import { BsThreeDotsVertical, BsCheckAll } from 'react-icons/bs';
+import { IoMdSend } from 'react-icons/io';
+import io, { Socket } from 'socket.io-client';
 
 interface User {
   id: number;
@@ -47,11 +46,13 @@ interface Message {
   conversationId?: number;
 }
 
+const API_URL = "https://messagerie-nbbh.onrender.com";
+const SOCKET_URL = "https://messagerie-nbbh.onrender.com";
+
 const Page = () => {
   const navigate = useNavigate();
-  const [showProfile, setShowProfile] = useState(false);
+  const [view, setView] = useState<'chat' | 'profile' | 'new-conversation'>('chat');
   const [selectedConversation, setSelectedConversation] = useState<User | null>(null);
-  const [showNewConversation, setShowNewConversation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -62,31 +63,114 @@ const Page = () => {
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [userDetails, setUserDetails] = useState<User | null>(null);
-  const [media] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [error, setError] = useState("");
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [showMobileConversationList, setShowMobileConversationList] = useState(false);
   const [showMobileUserDetails, setShowMobileUserDetails] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // Initialisation Socket.io avec authentification JWT
-  const initSocket = () => {
+  // Initialisation Socket.io
+  const initSocket = useCallback(() => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) return null;
 
-    socketRef.current = io("https://messagerie-nbbh.onrender.com", {
+    const socket = io(SOCKET_URL, {
       auth: { token },
       withCredentials: true,
+      transports: ['websocket'],
     });
 
-    return socketRef.current;
-  };
+    socket.on('connect', () => {
+      console.log('Connected to Socket.io');
+    });
 
-  // Vérification de l'authentification et chargement initial
+    socket.on('disconnect', () => {
+      console.log('Disconnected from Socket.io');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Connection error:', err.message);
+    });
+
+    return socket;
+  }, []);
+
+  // Gestionnaires d'événements Socket.io
+  const setupSocketListeners = useCallback((socket: Socket) => {
+    const handleNewMessage = (message: Message) => {
+      if (message.conversationId === conversationId) {
+        setMessages(prev => [...prev, message]);
+        if (message.sender_id !== user?.id) {
+          socket.emit('mark-as-read', { conversationId: message.conversationId });
+        }
+      }
+      
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === message.conversationId 
+            ? { 
+                ...conv, 
+                last_message: message.content || "Fichier", 
+                last_message_time: message.created_at,
+                unread_count: message.sender_id === user?.id ? 0 : (conv.unread_count || 0) + 1
+              } 
+            : conv
+        )
+      );
+    };
+
+    const handleMessageSent = (message: Message) => {
+      setMessages(prev => [...prev, message]);
+    };
+
+    const handleConversationUpdated = (conversation: Conversation) => {
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === conversation.id ? conversation : conv
+        )
+      );
+      
+      const totalUnread = conversations.reduce((acc, conv) => acc + conv.unread_count, 0);
+      setUnreadCount(totalUnread);
+    };
+
+    const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
+      setUsers(prev => 
+        prev.map(u => 
+          u.id === userId ? { ...u, status } : u
+        )
+      );
+      
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.other_user_id === userId 
+            ? { ...conv, other_user_status: status } 
+            : conv
+        )
+      );
+      
+      if (selectedConversation?.id === userId) {
+        setSelectedConversation(prev => prev ? { ...prev, status } : null);
+      }
+    };
+
+    socket.on('new-message', handleNewMessage);
+    socket.on('message-sent', handleMessageSent);
+    socket.on('conversation-updated', handleConversationUpdated);
+    socket.on('user-status-changed', handleUserStatusChanged);
+
+    return () => {
+      socket.off('new-message', handleNewMessage);
+      socket.off('message-sent', handleMessageSent);
+      socket.off('conversation-updated', handleConversationUpdated);
+      socket.off('user-status-changed', handleUserStatusChanged);
+    };
+  }, [conversationId, conversations, selectedConversation, user?.id]);
+
+  // Vérification de l'authentification
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
@@ -96,10 +180,8 @@ const Page = () => {
       }
 
       try {
-        const response = await fetch("https://messagerie-nbbh.onrender.com/api/check-auth", {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        const response = await fetch(`${API_URL}/api/check-auth`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (!response.ok) {
@@ -118,13 +200,16 @@ const Page = () => {
         setUser(data.user);
         fetchInitialData();
 
-        // Initialiser la connexion Socket.io
+        // Initialiser Socket.io
         const socket = initSocket();
-        if (socket) setupSocketListeners(socket);
-
-        return () => {
-          if (socket) socket.disconnect();
-        };
+        if (socket) {
+          socketRef.current = socket;
+          const cleanup = setupSocketListeners(socket);
+          return () => {
+            cleanup();
+            socket.disconnect();
+          };
+        }
       } catch (err) {
         localStorage.removeItem('token');
         navigate("/");
@@ -132,96 +217,37 @@ const Page = () => {
     };
 
     checkAuth();
-  }, [navigate]);
+  }, [navigate, initSocket, setupSocketListeners]);
 
-  // Configurer les écouteurs Socket.io
-  const setupSocketListeners = (socket: Socket) => {
-    socket.on('new-message', handleNewMessage);
-    socket.on('message-sent', handleMessageSent);
-    socket.on('conversation-updated', handleConversationUpdated);
-    socket.on('user-status-changed', handleUserStatusChanged);
-    socket.on('connect_error', (err) => {
-      console.error('Connection error:', err.message);
-    });
-  };
-
-  const handleNewMessage = (message: Message) => {
-    if (message.conversationId === conversationId) {
-      setMessages(prev => [...prev, message]);
-      if (message.sender_id !== user?.id) {
-        socketRef.current?.emit('mark-as-read', { conversationId: message.conversationId });
-      }
-    }
-    
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === message.conversationId 
-          ? { 
-              ...conv, 
-              last_message: message.content || "Fichier", 
-              last_message_time: message.created_at,
-              unread_count: message.sender_id === user?.id ? 0 : (conv.unread_count || 0) + 1
-            } 
-          : conv
-      )
-    );
-  };
-
-  const handleMessageSent = (message: Message) => {
-    setMessages(prev => [...prev, message]);
-  };
-
-  const handleConversationUpdated = (conversation: Conversation) => {
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === conversation.id ? conversation : conv
-      )
-    );
-    
-    const totalUnread = conversations.reduce((acc, conv) => acc + (conv.id === conversation.id ? conversation.unread_count : conv.unread_count), 0);
-    setUnreadCount(totalUnread);
-  };
-
-  const handleUserStatusChanged = ({ userId, status }: { userId: number; status: string }) => {
-    setUsers(prev => 
-      prev.map(u => 
-        u.id === userId ? { ...u, status } : u
-      )
-    );
-    
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.other_user_id === userId 
-          ? { ...conv, other_user_status: status } 
-          : conv
-      )
-    );
-    
-    if (selectedConversation?.id === userId) {
-      setSelectedConversation(prev => prev ? { ...prev, status } : null);
-    }
-  };
-
+  // Scroll vers le bas des messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Récupération des données initiales
   const fetchInitialData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Récupérer les utilisateurs
-      const usersResponse = await fetch("https://messagerie-nbbh.onrender.com/api/users", {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const usersData = await usersResponse.json();
-      if (usersData.success) setUsers(usersData.users);
+      const [usersResponse, conversationsResponse] = await Promise.all([
+        fetch(`${API_URL}/api/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/conversations`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
 
-      // Récupérer les conversations
-      await fetchConversations();
+      const usersData = await usersResponse.json();
+      const conversationsData = await conversationsResponse.json();
+      
+      if (usersData.success) setUsers(usersData.users);
+      if (conversationsData.success) {
+        setConversations(conversationsData.conversations);
+        const count = conversationsData.conversations.reduce((acc: number, conv: Conversation) => acc + (conv.unread_count || 0), 0);
+        setUnreadCount(count);
+      }
     } catch (err) {
       console.error("Erreur de chargement des données:", err);
       navigate("/");
@@ -230,35 +256,52 @@ const Page = () => {
     }
   };
 
-  const fetchConversations = async () => {
+  // Récupération des messages d'une conversation
+  const fetchConversationMessages = async () => {
+    if (!selectedConversation || !user) return;
+    
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/conversations", {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
       
-      if (data.success) {
-        setConversations(data.conversations);
-        const count = data.conversations.reduce((acc: number, conv: Conversation) => acc + (conv.unread_count || 0), 0);
-        setUnreadCount(count);
+      const convResponse = await fetch(
+        `${API_URL}/api/conversations/${selectedConversation.id}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const convData = await convResponse.json();
+      
+      if (convData.success) {
+        setConversationId(convData.conversationId);
+        
+        const messagesResponse = await fetch(
+          `${API_URL}/api/messages/${convData.conversationId}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        const messagesData = await messagesResponse.json();
+        
+        if (messagesData.success) {
+          setMessages(messagesData.messages);
+          
+          if (messagesData.messages.some((msg: Message) => !msg.is_read && msg.sender_id !== user.id)) {
+            socketRef.current?.emit('mark-as-read', { conversationId: convData.conversationId });
+          }
+        }
       }
     } catch (err) {
-      console.error("Erreur de chargement des conversations:", err);
+      console.error(err);
       navigate("/");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Récupération des données du profil
   const fetchProfileData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(`${API_URL}/api/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (!response.ok) throw new Error("Erreur de chargement du profil");
@@ -278,113 +321,16 @@ const Page = () => {
     }
   };
 
-  const fetchConversationMessages = async () => {
-    if (!selectedConversation || !user) return;
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      // D'abord récupérer ou créer la conversation
-      const convResponse = await fetch(
-        `https://messagerie-nbbh.onrender.com/api/conversations/${selectedConversation.id}`,
-        { 
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      const convData = await convResponse.json();
-      
-      if (convData.success) {
-        setConversationId(convData.conversationId);
-        
-        // Ensuite récupérer les messages
-        const messagesResponse = await fetch(
-          `https://messagerie-nbbh.onrender.com/api/messages/${convData.conversationId}`,
-          { 
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
-        const messagesData = await messagesResponse.json();
-        
-        if (messagesData.success) {
-          setMessages(messagesData.messages);
-          
-          // Marquer les messages comme lus
-          if (messagesData.messages.some((msg: Message) => !msg.is_read && msg.sender_id !== user.id)) {
-            socketRef.current?.emit('mark-as-read', { conversationId: convData.conversationId });
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      navigate("/");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Gestion des vues
   useEffect(() => {
-    if (showProfile) {
+    if (view === 'profile') {
       fetchProfileData();
+    } else if (view === 'chat' && selectedConversation) {
+      fetchConversationMessages();
     }
-  }, [showProfile]);
+  }, [view, selectedConversation]);
 
-  useEffect(() => {
-    fetchConversationMessages();
-  }, [selectedConversation]);
-
-  const handleShowMessages = () => {
-    setShowProfile(false);
-    setShowNewConversation(false);
-    setShowMobileSidebar(false);
-  };
-
-  const handleShowProfile = () => {
-    setShowProfile(true);
-    setShowNewConversation(false);
-    setShowMobileSidebar(false);
-  };
-
-  const handleNewConversation = () => {
-    setShowNewConversation(true);
-    setShowProfile(false);
-    setSelectedConversation(null);
-    setShowMobileSidebar(false);
-  };
-
-  const handleSelectUser = (user: User) => {
-    setSelectedConversation(user);
-    setShowProfile(false);
-    setShowNewConversation(false);
-    setShowMobileConversationList(false);
-  };
-
-  const handleLogout = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/logout", {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error("Erreur lors de la déconnexion");
-
-      localStorage.removeItem('token');
-      socketRef.current?.disconnect();
-      navigate("/");
-    } catch (error) {
-      console.error("Erreur déconnexion:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Envoi de message
   const sendMessage = async () => {
     if (input.trim() === "" || !conversationId || !user || !socketRef.current) return;
     
@@ -397,10 +343,12 @@ const Page = () => {
     }, (response: { success: boolean; message?: Message }) => {
       if (!response.success) {
         console.error("Erreur lors de l'envoi du message");
+        setInput(messageContent); // Restore message if failed
       }
     });
   };
 
+  // Upload de fichier
   const handleFileUpload = async (file: File) => {
     if (!conversationId || !user) return;
 
@@ -411,11 +359,9 @@ const Page = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/messages/upload", {
+      const response = await fetch(`${API_URL}/api/messages/upload`, {
         method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
       
@@ -431,6 +377,7 @@ const Page = () => {
     }
   };
 
+  // Sélection de fichier
   const handleFileSelect = () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -447,29 +394,7 @@ const Page = () => {
     input.click();
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    if (userDetails) {
-      setUserDetails(prev => ({
-        ...prev!,
-        [name]: value,
-      }));
-    }
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setAvatarFile(file);
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
+  // Mise à jour du profil
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -486,11 +411,9 @@ const Page = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch("https://messagerie-nbbh.onrender.com/api/profile", {
+      const response = await fetch(`${API_URL}/api/profile`, {
         method: "PUT",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
 
@@ -511,16 +434,39 @@ const Page = () => {
     }
   };
 
+  // Déconnexion
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/logout`, {
+        method: "POST",
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error("Erreur lors de la déconnexion");
+
+      localStorage.removeItem('token');
+      socketRef.current?.disconnect();
+      navigate("/");
+    } catch (error) {
+      console.error("Erreur déconnexion:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Rendu du contenu des messages
   const renderMessageContent = (msg: Message) => {
     if (msg.fileUrl) {
       if (msg.fileType?.startsWith("image/")) {
         return (
           <div className="relative group">
             <img
-              src={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
+              src={`${API_URL}${msg.fileUrl}`}
               alt="Fichier image"
               className="max-w-xs md:max-w-md rounded-lg cursor-pointer"
-              onClick={() => window.open(`https://messagerie-nbbh.onrender.com${msg.fileUrl}`, '_blank')}
+              onClick={() => window.open(`${API_URL}${msg.fileUrl}`, '_blank')}
             />
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
               <span className="text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
@@ -532,7 +478,7 @@ const Page = () => {
       }
       return (
         <a
-          href={`https://messagerie-nbbh.onrender.com${msg.fileUrl}`}
+          href={`${API_URL}${msg.fileUrl}`}
           download
           className="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
         >
@@ -544,6 +490,7 @@ const Page = () => {
     return <p className="whitespace-pre-wrap">{msg.content}</p>;
   };
 
+  // Filtrage des utilisateurs et conversations
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -552,6 +499,7 @@ const Page = () => {
     conv.other_user_name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Données statiques pour les liens et médias
   const links = [
     {
       url: "https://example.com/project",
@@ -565,17 +513,12 @@ const Page = () => {
     },
   ];
 
-  // Mobile responsive handlers
-  const handleBackToConversations = () => {
-    setShowMobileConversationList(true);
-    setSelectedConversation(null);
-  };
+  const media = messages
+    .filter(msg => msg.fileUrl && msg.fileType?.startsWith("image/"))
+    .map(msg => `${API_URL}${msg.fileUrl}`);
 
-  const handleBackToChat = () => {
-    setShowMobileUserDetails(false);
-  };
-
-  if (showProfile) {
+  // Rendu des différentes vues
+  if (view === 'profile') {
     return (
       <div className="flex w-full min-h-screen bg-gray-50">
         {/* Mobile Header */}
@@ -584,7 +527,7 @@ const Page = () => {
             <FiMenu size={24} />
           </button>
           <h1 className="text-xl font-semibold text-gray-800">Mon Profil</h1>
-          <div className="w-6"></div> {/* Spacer for alignment */}
+          <div className="w-6"></div>
         </div>
 
         {/* Sidebar - Mobile */}
@@ -596,7 +539,7 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                      src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -611,7 +554,7 @@ const Page = () => {
 
                 <div className="flex flex-col items-center gap-6 flex-1 justify-center mt-8">
                   <button
-                    onClick={handleShowMessages}
+                    onClick={() => setView('chat')}
                     className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50 relative flex items-center gap-3"
                   >
                     <FiMessageSquare size={22} />
@@ -624,7 +567,7 @@ const Page = () => {
                   </button>
 
                   <button
-                    onClick={handleShowProfile}
+                    onClick={() => setView('profile')}
                     className="text-indigo-600 hover:text-indigo-800 transition p-2 rounded-full hover:bg-indigo-50 flex items-center gap-3"
                   >
                     <FiSettings size={22} />
@@ -653,7 +596,7 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -668,7 +611,7 @@ const Page = () => {
 
           <div className="flex flex-col items-center gap-8 flex-1 justify-center">
             <button
-              onClick={handleShowMessages}
+              onClick={() => setView('chat')}
               className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50 relative"
               title="Messagerie"
             >
@@ -681,7 +624,7 @@ const Page = () => {
             </button>
 
             <button
-              onClick={handleShowProfile}
+              onClick={() => setView('profile')}
               className="text-indigo-600 hover:text-indigo-800 transition p-2 rounded-full hover:bg-indigo-50"
               title="Paramètres"
             >
@@ -731,7 +674,7 @@ const Page = () => {
                       <div className="relative group">
                         <img
                           className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg"
-                          src={userDetails?.avatar ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}` : "/images/default.jpg"}
+                          src={userDetails?.avatar ? `${API_URL}${userDetails.avatar}` : "/images/default.jpg"}
                           alt="Photo de profil"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -783,7 +726,7 @@ const Page = () => {
                         <div className="relative">
                           <img
                             className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-md"
-                            src={avatarPreview || (userDetails?.avatar ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}` : "/images/default.jpg")}
+                            src={avatarPreview || (userDetails?.avatar ? `${API_URL}${userDetails.avatar}` : "/images/default.jpg")}
                             alt="Aperçu"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -796,7 +739,18 @@ const Page = () => {
                         <input 
                           type="file" 
                           accept="image/*" 
-                          onChange={handleAvatarChange} 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              const file = e.target.files[0];
+                              setAvatarFile(file);
+
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setAvatarPreview(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }} 
                           className="hidden" 
                         />
                       </label>
@@ -809,7 +763,7 @@ const Page = () => {
                           type="text"
                           name="name"
                           value={userDetails?.name || ""}
-                          onChange={handleInputChange}
+                          onChange={(e) => userDetails && setUserDetails({...userDetails, name: e.target.value})}
                           required
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
                         />
@@ -831,7 +785,7 @@ const Page = () => {
                           type="tel"
                           name="phone"
                           value={userDetails?.phone || ""}
-                          onChange={handleInputChange}
+                          onChange={(e) => userDetails && setUserDetails({...userDetails, phone: e.target.value})}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
                         />
                       </div>
@@ -842,7 +796,7 @@ const Page = () => {
                           type="text"
                           name="location"
                           value={userDetails?.location || ""}
-                          onChange={handleInputChange}
+                          onChange={(e) => userDetails && setUserDetails({...userDetails, location: e.target.value})}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
                         />
                       </div>
@@ -854,7 +808,7 @@ const Page = () => {
                         name="bio"
                         rows={4}
                         value={userDetails?.bio || ""}
-                        onChange={handleInputChange}
+                        onChange={(e) => userDetails && setUserDetails({...userDetails, bio: e.target.value})}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
                       />
                     </div>
@@ -896,7 +850,7 @@ const Page = () => {
     );
   }
 
-  if (showNewConversation) {
+  if (view === 'new-conversation') {
     return (
       <div className="flex w-full min-h-screen bg-gray-50">
         {/* Mobile Header */}
@@ -905,7 +859,7 @@ const Page = () => {
             <FiMenu size={24} />
           </button>
           <h1 className="text-xl font-semibold text-gray-800">Nouvelle conversation</h1>
-          <div className="w-6"></div> {/* Spacer for alignment */}
+          <div className="w-6"></div>
         </div>
 
         {/* Sidebar - Mobile */}
@@ -917,7 +871,7 @@ const Page = () => {
                   {user ? (
                     <img
                       className="w-full h-full object-cover"
-                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                      src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -932,7 +886,7 @@ const Page = () => {
 
                 <div className="flex flex-col items-center gap-6 flex-1 justify-center mt-8">
                   <button
-                    onClick={handleShowMessages}
+                    onClick={() => setView('chat')}
                     className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50 relative flex items-center gap-3"
                   >
                     <FiMessageSquare size={22} />
@@ -945,7 +899,7 @@ const Page = () => {
                   </button>
 
                   <button
-                    onClick={handleShowProfile}
+                    onClick={() => setView('profile')}
                     className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50 flex items-center gap-3"
                   >
                     <FiSettings size={22} />
@@ -974,7 +928,7 @@ const Page = () => {
             {user ? (
               <img
                 className="w-full h-full object-cover"
-                src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -989,7 +943,7 @@ const Page = () => {
 
           <div className="flex flex-col items-center gap-8 flex-1 justify-center">
             <button
-              onClick={handleShowMessages}
+              onClick={() => setView('chat')}
               className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50 relative"
               title="Messagerie"
             >
@@ -1002,7 +956,7 @@ const Page = () => {
             </button>
 
             <button
-              onClick={handleShowProfile}
+              onClick={() => setView('profile')}
               className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50"
               title="Paramètres"
             >
@@ -1044,11 +998,14 @@ const Page = () => {
                     <div 
                       key={user.id} 
                       className="flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
-                      onClick={() => handleSelectUser(user)}
+                      onClick={() => {
+                        setSelectedConversation(user);
+                        setView('chat');
+                      }}
                     >
                       <div className="relative mr-3">
                         <img
-                          src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                          src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                           alt={user.name}
                           className="w-10 h-10 rounded-full object-cover"
                           onError={(e) => {
@@ -1078,9 +1035,9 @@ const Page = () => {
     <div className="flex w-full min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white z-50 p-3 border-b border-gray-200 flex items-center justify-between">
-        {selectedConversation && !showMobileConversationList ? (
+        {selectedConversation ? (
           <>
-            <button onClick={handleBackToConversations} className="text-gray-600">
+            <button onClick={() => setSelectedConversation(null)} className="text-gray-600">
               <FiChevronLeft size={24} />
             </button>
             <h1 className="text-xl font-semibold text-gray-800 truncate max-w-[60%]">
@@ -1096,7 +1053,7 @@ const Page = () => {
               <FiMenu size={24} />
             </button>
             <h1 className="text-xl font-semibold text-gray-800">Messages</h1>
-            <button onClick={handleNewConversation} className="text-gray-600">
+            <button onClick={() => setView('new-conversation')} className="text-gray-600">
               <FiEdit size={20} />
             </button>
           </>
@@ -1112,7 +1069,7 @@ const Page = () => {
                 {user ? (
                   <img
                     className="w-full h-full object-cover"
-                    src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                    src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                     alt="Profil"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -1127,7 +1084,10 @@ const Page = () => {
 
               <div className="flex flex-col items-center gap-6 flex-1 justify-center mt-8">
                 <button
-                  onClick={handleShowMessages}
+                  onClick={() => {
+                    setView('chat');
+                    setShowMobileSidebar(false);
+                  }}
                   className="text-indigo-600 hover:text-indigo-800 transition p-2 rounded-full hover:bg-indigo-50 relative flex items-center gap-3"
                 >
                   <FiMessageSquare size={22} />
@@ -1140,7 +1100,10 @@ const Page = () => {
                 </button>
 
                 <button
-                  onClick={handleShowProfile}
+                  onClick={() => {
+                    setView('profile');
+                    setShowMobileSidebar(false);
+                  }}
                   className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50 flex items-center gap-3"
                 >
                   <FiSettings size={22} />
@@ -1169,7 +1132,7 @@ const Page = () => {
           {user ? (
             <img
               className="w-full h-full object-cover"
-              src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+              src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
               alt="Profil"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/images/default.jpg";
@@ -1184,7 +1147,7 @@ const Page = () => {
 
         <div className="flex flex-col items-center gap-8 flex-1 justify-center">
           <button
-            onClick={handleShowMessages}
+            onClick={() => setView('chat')}
             className="text-indigo-600 hover:text-indigo-800 transition p-2 rounded-full hover:bg-indigo-50 relative"
             title="Messagerie"
           >
@@ -1197,7 +1160,7 @@ const Page = () => {
           </button>
 
           <button
-            onClick={handleShowProfile}
+            onClick={() => setView('profile')}
             className="text-gray-500 hover:text-indigo-600 transition p-2 rounded-full hover:bg-indigo-50"
             title="Paramètres"
           >
@@ -1218,7 +1181,7 @@ const Page = () => {
       </div>
 
       {/* Conversations List - Mobile */}
-      {(showMobileConversationList || !selectedConversation) && (
+      {!selectedConversation && (
         <div className="md:hidden fixed inset-0 bg-white z-40 pt-16 overflow-y-auto">
           <div className="p-4 sticky top-0 bg-white z-10 border-b border-gray-100">
             <div className="relative mb-4">
@@ -1241,7 +1204,7 @@ const Page = () => {
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-sm font-semibold text-gray-700">Contacts</h2>
                 <button 
-                  onClick={handleNewConversation}
+                  onClick={() => setView('new-conversation')}
                   className="text-xs text-indigo-600 hover:text-indigo-800"
                 >
                   Voir tous
@@ -1252,10 +1215,10 @@ const Page = () => {
                   <div key={user.id} className="flex flex-col items-center">
                     <div 
                       className="relative cursor-pointer"
-                      onClick={() => handleSelectUser(user)}
+                      onClick={() => setSelectedConversation(user)}
                     >
                       <img
-                        src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                        src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                         alt={user.name}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                         onError={(e) => {
@@ -1285,7 +1248,7 @@ const Page = () => {
               filteredConversations.map((conv) => (
                 <div
                   key={conv.id}
-                  onClick={() => handleSelectUser({
+                  onClick={() => setSelectedConversation({
                     id: conv.other_user_id,
                     name: conv.other_user_name,
                     avatar: conv.other_user_avatar,
@@ -1299,7 +1262,7 @@ const Page = () => {
                 >
                   <div className="relative mr-3">
                     <img
-                      src={conv.other_user_avatar ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}` : "/images/default.jpg"}
+                      src={conv.other_user_avatar ? `${API_URL}${conv.other_user_avatar}` : "/images/default.jpg"}
                       alt={conv.other_user_name}
                       className="w-12 h-12 rounded-full object-cover"
                       onError={(e) => {
@@ -1362,7 +1325,7 @@ const Page = () => {
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-sm font-semibold text-gray-700">Contacts</h2>
               <button 
-                onClick={handleNewConversation}
+                onClick={() => setView('new-conversation')}
                 className="text-xs text-indigo-600 hover:text-indigo-800"
               >
                 Voir tous
@@ -1373,10 +1336,10 @@ const Page = () => {
                 <div key={user.id} className="flex flex-col items-center">
                   <div 
                     className="relative cursor-pointer"
-                    onClick={() => handleSelectUser(user)}
+                    onClick={() => setSelectedConversation(user)}
                   >
                     <img
-                      src={user.avatar ? `https://messagerie-nbbh.onrender.com${user.avatar}` : "/images/default.jpg"}
+                      src={user.avatar ? `${API_URL}${user.avatar}` : "/images/default.jpg"}
                       alt={user.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                       onError={(e) => {
@@ -1392,7 +1355,6 @@ const Page = () => {
                   </span>
                 </div>
               ))}
-              
             </div>
           </div>
         </div>
@@ -1407,7 +1369,7 @@ const Page = () => {
             filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => handleSelectUser({
+                onClick={() => setSelectedConversation({
                   id: conv.other_user_id,
                   name: conv.other_user_name,
                   avatar: conv.other_user_avatar,
@@ -1421,7 +1383,7 @@ const Page = () => {
               >
                 <div className="relative mr-3">
                   <img
-                    src={conv.other_user_avatar ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}` : "/images/default.jpg"}
+                    src={conv.other_user_avatar ? `${API_URL}${conv.other_user_avatar}` : "/images/default.jpg"}
                     alt={conv.other_user_name}
                     className="w-12 h-12 rounded-full object-cover"
                     onError={(e) => {
@@ -1468,17 +1430,17 @@ const Page = () => {
             <div className="md:hidden fixed inset-0 bg-white z-40 pt-16 overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <button onClick={handleBackToChat} className="text-gray-600">
+                  <button onClick={() => setShowMobileUserDetails(false)} className="text-gray-600">
                     <FiChevronLeft size={24} />
                   </button>
                   <h2 className="text-xl font-semibold text-gray-800">Détails</h2>
-                  <div className="w-6"></div> {/* Spacer for alignment */}
+                  <div className="w-6"></div>
                 </div>
 
                 <div className="flex flex-col items-center">
                   <div className="relative mb-4">
                     <img
-                      src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default.jpg"}
+                      src={selectedConversation.avatar ? `${API_URL}${selectedConversation.avatar}` : "/images/default.jpg"}
                       alt="Profil"
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                       onError={(e) => {
@@ -1599,7 +1561,7 @@ const Page = () => {
                 <div className="flex items-center">
                   <div className="relative">
                     <img
-                      src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default.jpg"}
+                      src={selectedConversation.avatar ? `${API_URL}${selectedConversation.avatar}` : "/images/default.jpg"}
                       alt="Profil"
                       className="w-10 h-10 rounded-full object-cover"
                       onError={(e) => {
@@ -1728,7 +1690,7 @@ const Page = () => {
               <div className="flex items-center">
                 <div className="relative">
                   <img
-                    src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default.jpg"}
+                    src={selectedConversation.avatar ? `${API_URL}${selectedConversation.avatar}` : "/images/default.jpg"}
                     alt="Profil"
                     className="w-10 h-10 rounded-full object-cover"
                     onError={(e) => {
@@ -1856,7 +1818,7 @@ const Page = () => {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <img
-                    src={selectedConversation.avatar ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}` : "/images/default.jpg"}
+                    src={selectedConversation.avatar ? `${API_URL}${selectedConversation.avatar}` : "/images/default.jpg"}
                     alt="Profil"
                     className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                     onError={(e) => {

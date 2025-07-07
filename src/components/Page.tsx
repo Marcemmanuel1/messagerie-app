@@ -598,12 +598,12 @@ const Page = () => {
                       src={
                         user.avatar
                           ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                          : "/images/default-avatar.jpg"
+                          : "/images/default.jpg"
                       }
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          "/images/default-avatar.jpg";
+                          "/images/default.jpg";
                       }}
                     />
                   ) : (
@@ -660,12 +660,12 @@ const Page = () => {
                 src={
                   user.avatar
                     ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                    : "/images/default-avatar.jpg"
+                    : "/images/default.jpg"
                 }
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
-                    "/images/default-avatar.jpg";
+                    "/images/default.jpg";
                 }}
               />
             ) : (
@@ -747,12 +747,12 @@ const Page = () => {
                           src={
                             userDetails?.avatar
                               ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}`
-                              : "/images/default-avatar.jpg"
+                              : "/images/default.jpg"
                           }
                           alt="Photo de profil"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src =
-                              "/images/default-avatar.jpg";
+                              "/images/default.jpg";
                           }}
                         />
                       </div>
@@ -811,12 +811,12 @@ const Page = () => {
                               avatarPreview ||
                               (userDetails?.avatar
                                 ? `https://messagerie-nbbh.onrender.com${userDetails.avatar}`
-                                : "/images/default-avatar.jpg")
+                                : "/images/default.jpg")
                             }
                             alt="Aperçu"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src =
-                                "/images/default-avatar.jpg";
+                                "/images/default.jpg";
                             }}
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -967,12 +967,12 @@ const Page = () => {
                       src={
                         user.avatar
                           ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                          : "/images/default-avatar.jpg"
+                          : "/images/default.jpg"
                       }
                       alt="Profil"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          "/images/default-avatar.jpg";
+                          "/images/default.jpg";
                       }}
                     />
                   ) : (
@@ -1029,12 +1029,12 @@ const Page = () => {
                 src={
                   user.avatar
                     ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                    : "/images/default-avatar.jpg"
+                    : "/images/default.jpg"
                 }
                 alt="Profil"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
-                    "/images/default-avatar.jpg";
+                    "/images/default.jpg";
                 }}
               />
             ) : (
@@ -1112,13 +1112,13 @@ const Page = () => {
                           src={
                             user.avatar
                               ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                              : "/images/default-avatar.jpg"
+                              : "/images/default.jpg"
                           }
                           alt={user.name}
                           className="w-10 h-10 rounded-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src =
-                              "/images/default-avatar.jpg";
+                              "/images/default.jpg";
                           }}
                         />
                         <div
@@ -1196,12 +1196,12 @@ const Page = () => {
                     src={
                       user.avatar
                         ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                        : "/images/default-avatar.jpg"
+                        : "/images/default.jpg"
                     }
                     alt="Profil"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        "/images/default-avatar.jpg";
+                        "/images/default.jpg";
                     }}
                   />
                 ) : (
@@ -1258,12 +1258,12 @@ const Page = () => {
               src={
                 user.avatar
                   ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                  : "/images/default-avatar.jpg"
+                  : "/images/default.jpg"
               }
               alt="Profil"
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
-                  "/images/default-avatar.jpg";
+                  "/images/default.jpg";
               }}
             />
           ) : (
@@ -1351,13 +1351,13 @@ const Page = () => {
                         src={
                           user.avatar
                             ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                            : "/images/default-avatar.jpg"
+                            : "/images/default.jpg"
                         }
                         alt={user.name}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
-                            "/images/default-avatar.jpg";
+                            "/images/default.jpg";
                         }}
                       />
                       <div
@@ -1409,13 +1409,13 @@ const Page = () => {
                       src={
                         conv.other_user_avatar
                           ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}`
-                          : "/images/default-avatar.jpg"
+                          : "/images/default.jpg"
                       }
                       alt={conv.other_user_name}
                       className="w-12 h-12 rounded-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          "/images/default-avatar.jpg";
+                          "/images/default.jpg";
                       }}
                     />
                     <div
@@ -1498,13 +1498,13 @@ const Page = () => {
                       src={
                         user.avatar
                           ? `https://messagerie-nbbh.onrender.com${user.avatar}`
-                          : "/images/default-avatar.jpg"
+                          : "/images/default.jpg"
                       }
                       alt={user.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          "/images/default-avatar.jpg";
+                          "/images/default.jpg";
                       }}
                     />
                     <div
@@ -1556,13 +1556,13 @@ const Page = () => {
                     src={
                       conv.other_user_avatar
                         ? `https://messagerie-nbbh.onrender.com${conv.other_user_avatar}`
-                        : "/images/default-avatar.jpg"
+                        : "/images/default.jpg"
                     }
                     alt={conv.other_user_name}
                     className="w-12 h-12 rounded-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        "/images/default-avatar.jpg";
+                        "/images/default.jpg";
                     }}
                   />
                   <div
@@ -1627,13 +1627,13 @@ const Page = () => {
                       src={
                         selectedConversation.avatar
                           ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
-                          : "/images/default-avatar.jpg"
+                          : "/images/default.jpg"
                       }
                       alt="Profil"
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          "/images/default-avatar.jpg";
+                          "/images/default.jpg";
                       }}
                     />
                     <div
@@ -1766,13 +1766,13 @@ const Page = () => {
                       src={
                         selectedConversation.avatar
                           ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
-                          : "/images/default-avatar.jpg"
+                          : "/images/default.jpg"
                       }
                       alt="Profil"
                       className="w-10 h-10 rounded-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          "/images/default-avatar.jpg";
+                          "/images/default.jpg";
                       }}
                     />
                     <div
@@ -1927,13 +1927,13 @@ const Page = () => {
                     src={
                       selectedConversation.avatar
                         ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
-                        : "/images/default-avatar.jpg"
+                        : "/images/default.jpg"
                     }
                     alt="Profil"
                     className="w-10 h-10 rounded-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        "/images/default-avatar.jpg";
+                        "/images/default.jpg";
                     }}
                   />
                   <div
@@ -2084,13 +2084,13 @@ const Page = () => {
                     src={
                       selectedConversation.avatar
                         ? `https://messagerie-nbbh.onrender.com${selectedConversation.avatar}`
-                        : "/images/default-avatar.jpg"
+                        : "/images/default.jpg"
                     }
                     alt="Profil"
                     className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        "/images/default-avatar.jpg";
+                        "/images/default.jpg";
                     }}
                   />
                   <div
